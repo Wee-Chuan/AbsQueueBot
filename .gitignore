@@ -1,0 +1,5 @@
+.env
+telebot
+__pycache__/
+.venv
+telegram-mini-app/node_modules/
