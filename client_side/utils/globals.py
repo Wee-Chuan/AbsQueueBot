@@ -41,6 +41,6 @@ FIREBASE_API_KEY = os.getenv("FIREBASE_API_KEY")
 FIREBASE_AUTH_URL = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={FIREBASE_API_KEY}"
 
 # GEOCODING API key
-GEOCODING_API_KEY = "AIzaSyDHw-39ypHBYZQ8ustR2wqBCuKUPBJ4Lkc"
+GEOCODING_API_KEY = os.getenv("GEOCODING_API_KEY")
 
 timezone = pytz.timezone("Asia/Singapore")
