@@ -3,8 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="firebase-api-key" content="AIzaSyB1dFyyd9v4S9ZvTa6mGajl_JUSdH_mNeQ">
-    <meta name="google-maps-api-key" content="AIzaSyDHw-39ypHBYZQ8ustR2wqBCuKUPBJ4Lkc">
     <title>Barbers Map</title>
     <style>
         *, *::before, *::after {
@@ -98,7 +96,7 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
     <script>
         // Dynamically load Google Maps API using meta tag key
-        const mapsApiKey = document.querySelector('meta[name="google-maps-api-key"]').content;
+        const mapsApiKey = import.meta.env.GEOCODING_API_KEY;
         const script = document.createElement('script');
         script.src = `https://maps.googleapis.com/maps/api/js?key=${mapsApiKey}&callback=initMap`;
         script.async = true;
@@ -107,7 +105,7 @@
     </script>
 
     <script>
-    const apiKey = document.querySelector('meta[name="firebase-api-key"]').content;
+    const apiKey = import.meta.env.FIREBASE_API_KEY;
     const firebaseConfig = {
         apiKey: apiKey,
         authDomain: "absqueuebot.firebaseapp.com",
