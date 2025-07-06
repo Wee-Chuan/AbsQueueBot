@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Barbers Map</title>
+    <style>
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
+        body, html {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            overflow: hidden;
+        }
+        #map {
+            position: absolute;
+            height: 100vh;
+            width: 100%;
+            top: 0;
+            left: 0;
+            overflow: visible;
+            z-index: 0;
+        }
+
+        .directions-btn {
+            background-color: #4285F4; /* Google blue */
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            font-size: 14px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 8px;
+            transition: background-color 0.2s ease;
+        }
+
+        .directions-btn:hover {
+            background-color: #357ae8;
+        }
+
+        .custom-location-button {
+            background-color: #fff;
+            border: none;
+            outline: none;
+            width: 40px;  
+            height: 40px;
+            border-radius: 24px;  /* Circular button */
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+        
+        .custom-location-button:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .custom-location-button:active {
+            transform: scale(0.95);  /* Press effect */
+        }
+        
+        .location-icon {
+            width: 24px;
+            height: 24px;
+            color: #4285F4;  /* Google blue */
+        }
+        
+        /* For mobile devices */
+        @media (max-width: 768px) {
+            .custom-location-button {
+                width: 40px;  /* Even larger on mobile */
+                height: 40px;
+                border-radius: 28px;
+            }
+            
+            .location-icon {
+                width: 24px;
+                height: 24px;
+            }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="map"></div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <script
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDHw-39ypHBYZQ8ustR2wqBCuKUPBJ4Lkc&callback=initMap"
+        async
+        defer
+        loading="async"
+    ></script>
+
+    <script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyB1dFyyd9v4S9ZvTa6mGajl_JUSdH_mNeQ",
+        authDomain: "absqueuebot.firebaseapp.com",
+        projectId: "absqueuebot",
+        storageBucket: "absqueuebot.appspot.com",
+        messagingSenderId: "287495186491",
+        appId: "1:287495186491:web:75da19a2d730346124d41e"
+    };
+
+    const app = firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore(app);
+
+    let map;
+    let directionsService;
+    let directionsRenderer;
+    let barberMarkers = []; 
+
+    // Initialize Telegram WebApp if available
+    if (window.Telegram && window.Telegram.WebApp) {
+        Telegram.WebApp.expand();
+        Telegram.WebApp.enableClosingConfirmation();
+    }
+
+    function initMap() {
+        map = new google.maps.Map(document.getElementById("map"), {
+            center: { lat: 1.3521, lng: 103.8198 }, // Singapore
+            zoom: 13,
+            zoomControl: true,         // Enables zoom control buttons
+            scaleControl: true,        // Enables scale control
+            streetViewControl: true,   // Enables Street View control (pegman icon)
+            mapTypeControl: true,      // Enables map type control (satellite, terrain, etc.)
+            fullscreenControl: true,   // Enables fullscreen control (fullscreen icon)
+            // Enable "My Location" button (geolocation)
+            geolocationControl: true
+        });
+
+        // Show user's current location
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition((position) => {
+                const userLocation = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                };
+
+                // Center map on user's location
+                map.setCenter(userLocation);
+
+                // Add a marker for user's location
+                new google.maps.Marker({
+                    position: userLocation,
+                    map: map,
+                    title: "You are here",
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 8,
+                        fillColor: "#4285F4",
+                        fillOpacity: 1,
+                        strokeColor: "#ffffff",
+                        strokeWeight: 2
+                    }
+                });
+            }, (error) => {
+                // Handle errors, such as "user denied" or "location unavailable"
+                if (error.code === error.PERMISSION_DENIED) {
+                    alert("Please allow location access for better accuracy.");
+                } else if (error.code === error.TIMEOUT) {
+                    alert("Location request timed out. Please try again.");
+                } else {
+                    alert("Unable to retrieve location.");
+                }
+            }, 
+            {
+                enableHighAccuracy: true,
+                timeout: 3000,
+                maximumAge: 0
+            });
+        } else {
+            console.warn("Geolocation is not supported by this browser.");
+        }
+
+        directionsService = new google.maps.DirectionsService();
+        directionsRenderer = new google.maps.DirectionsRenderer({ map: map });
+
+        loadBarberLocations();
+        createLocationButton(map);
+    }
+
+    function createLocationButton(map) {
+        // Create button container
+        const buttonContainer = document.createElement("div");
+        buttonContainer.style.margin = "10px";
+        
+        // Create button element
+        const locationButton = document.createElement("button");
+        locationButton.classList.add("custom-location-button");
+        locationButton.title = "My Location";  // Accessibility
+        
+        // Add SVG icon (better than emoji for consistency)
+        locationButton.innerHTML = `
+            <svg class="location-icon" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+            </svg>
+        `;
+        
+        // Position at bottom right (better for thumb reach on mobile)
+        map.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(buttonContainer);
+        buttonContainer.appendChild(locationButton);
+        
+        // Add touch/click handler
+        locationButton.addEventListener("click", () => {
+            // Visual feedback
+            locationButton.style.backgroundColor = "#f5f5f5";
+            setTimeout(() => {
+                locationButton.style.backgroundColor = "#fff";
+            }, 200);
+            
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const userLocation = {
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude
+                        };
+                        
+                        map.setCenter(userLocation);
+                        map.setZoom(16);
+                        
+                        // Clear previous user marker if exists
+                        if (window.userLocationMarker) {
+                            window.userLocationMarker.setMap(null);
+                        }
+                        
+                        // Add new marker
+                        window.userLocationMarker = new google.maps.Marker({
+                            position: userLocation,
+                            map: map,
+                            title: "You are here",
+                            icon: {
+                                path: google.maps.SymbolPath.CIRCLE,
+                                scale: 8,
+                                fillColor: "#4285F4",
+                                fillOpacity: 1,
+                                strokeColor: "#ffffff",
+                                strokeWeight: 2
+                            }
+                        });
+                    },
+                    (error) => {
+                        let errorMessage = "Could not get your location.";
+                        if (error.code === error.PERMISSION_DENIED) {
+                            errorMessage = "Location permission denied. Please enable it in settings.";
+                        }
+                        
+                        // Show more helpful error message
+                        if (window.Telegram && window.Telegram.WebApp) {
+                            Telegram.WebApp.showAlert(errorMessage);
+                        } else {
+                            alert(errorMessage);
+                        }
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 5000,  // Shorter timeout for mobile
+                        maximumAge: 0
+                    }
+                );
+            } else {
+                const errorMessage = "Geolocation is not supported by this device.";
+                if (window.Telegram && window.Telegram.WebApp) {
+                    Telegram.WebApp.showAlert(errorMessage);
+                } else {
+                    alert(errorMessage);
+                }
+            }
+        });
+    }
+
+
+    function loadBarberLocations() {
+        db.collection("barbers").get().then((querySnapshot) => {
+            querySnapshot.forEach((doc) => {
+                const barber = doc.data();
+                if (barber.address) {
+                    geocodeAddress(barber.address, barber.name);
+                }
+            });
+        }).catch((error) => {
+            console.error("Error fetching barbers:", error);
+        });
+    }
+
+    function geocodeAddress(address, barberName) {
+        const geocoder = new google.maps.Geocoder();
+        geocoder.geocode({ address: address }, (results, status) => {
+            if (status === "OK") {
+                const location = results[0].geometry.location;
+                const marker = new google.maps.Marker({
+                    map: map,
+                    position: location,
+                    title: barberName || address,
+                });
+
+                const infoWindow = new google.maps.InfoWindow({
+                    content: `
+                        <div>
+                            <strong>${barberName}</strong><br>
+                            ${address}<br>
+                            <button class="directions-btn" onclick="getDirections(${location.lat()}, ${location.lng()})">
+                                Get Directions
+                            </button>
+                        </div>
+                    `,
+                });
+
+                marker.addListener("click", () => {
+                    infoWindow.open(map, marker);
+                });
+
+                barberMarkers.push(marker);
+            } else {
+                console.warn("Geocode was not successful for address: " + address + " Status: " + status);
+            }
+        });
+    }
+
+    function getDirections(destLat, destLng) {
+        // Check if we're in Telegram WebView
+        if (window.Telegram && window.Telegram.WebApp) {
+            // Use Telegram's method to open external links
+            const webUrl = `https://www.google.com/maps/dir/?api=1&destination=${destLat},${destLng}&travelmode=driving`;
+
+            // First try opening directly
+            window.open(webUrl, '_blank');
+            
+            // Fallback using Telegram's method
+            setTimeout(() => {
+                Telegram.WebApp.openLink(webUrl);
+            }, 200);
+            return;
+        }
+
+        // For regular browsers
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition((position) => {
+                const originLat = position.coords.latitude;
+                const originLng = position.coords.longitude;
+
+                const appUrl = `comgooglemaps://?saddr=${originLat},${originLng}&daddr=${destLat},${destLng}&directionsmode=driving`;
+                const webUrl = `https://www.google.com/maps/dir/?api=1&origin=${originLat},${originLng}&destination=${destLat},${destLng}&travelmode=driving`;
+
+                // Try app deep link
+                window.location.href = appUrl;
+
+                // Fallback to web after short delay
+                setTimeout(() => {
+                    window.location.href = webUrl;
+                }, 500);
+            }, () => {
+            alert("Geolocation failed.");
+            });
+        } else {
+            alert("Geolocation is not supported by this browser.");
+        }
+    }
+
+    function centerToCurrentLocation() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition((position) => {
+                const userLocation = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                };
+                map.setCenter(userLocation);
+                map.setZoom(17);
+            }, () => {
+                alert("Unable to retrieve your location.");
+            });
+        } else {
+            alert("Geolocation is not supported by this browser.");
+        }
+    }
+
+    </script>
+
+</body>
+</html>

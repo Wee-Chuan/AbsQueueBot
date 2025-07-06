@@ -17,6 +17,7 @@ from shared.utils import HelperUtils
 
 # Import barber-side modules
 
+
 # Define states
 SELECTING_ROLE, BARBER_MODE, CLIENT_MODE = range(3)
 
