@@ -11,22 +11,6 @@ from telegram.ext import CallbackContext, ConversationHandler
 from shared.utils import HelperUtils
 from io import BytesIO
 
-# /start
-# Starting up the bot
-async def start(update: Update, context: CallbackContext) -> None:
-    """Handler for /start command"""
-    # Send welcome image
-    await _send_welcome_image(update)
-
-    welcome_message = (
-        "Welcome to <b>AbsQueue</b>! The easiest way to book your barber slot!\n\n"
-        "Type /menu to see available options.\n"
-        "Type /help if you need assistance.\n\n"
-    )
-
-    await update.message.reply_text(welcome_message, parse_mode="HTML")
-    return ConversationHandler.END
-
 async def client_menu(update: Update, context: CallbackContext) -> None:
     """Handler for /menu command - shows the main options"""
     # Reset copnversation state and clear previous messages
@@ -55,21 +39,9 @@ async def client_menu(update: Update, context: CallbackContext) -> None:
 
     return ConversationHandler.END
 
-async def _send_welcome_image(update: Update) -> None:
-    """Helper function to send welcome image"""
-    try:
-        bucket = storage.bucket()
-        blob = bucket.blob("image.jpg")
-        
-        if blob.exists():
-            image_data = blob.download_as_bytes()
-            await update.message.reply_photo(photo=BytesIO(image_data))
-    except Exception as e:
-        print(f"Error loading welcome image: {e}")
-
 # Function to handle cancellation of the conversation
 @HelperUtils.check_conversation_active
-async def cancel(update: Update, context: CallbackContext) -> int:
+async def client_cancel(update: Update, context: CallbackContext) -> int:
     """Cancel the conversation."""
     chat_id = update.effective_chat.id
 
@@ -79,5 +51,6 @@ async def cancel(update: Update, context: CallbackContext) -> int:
     msg = await update.message.reply_text(message, reply_markup=ReplyKeyboardRemove())
 
     HelperUtils.reset_conversation_state(context)
+    HelperUtils.store_message_id(context, msg.message_id)
     return ConversationHandler.END
     

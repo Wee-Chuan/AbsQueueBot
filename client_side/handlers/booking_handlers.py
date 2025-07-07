@@ -1146,7 +1146,7 @@ book_slots_handler = ConversationHandler(
     },
     fallbacks=[
         CommandHandler("menu", client_menu),
-        CommandHandler("cancel", cancel),
+        CommandHandler("cancel", client_cancel),
     ],
     allow_reentry=True
 )

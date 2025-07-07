@@ -1,5 +1,6 @@
 import sys
 import os
+import asyncio
 
 # Add the parent directory of barber_side to the Python path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -90,12 +91,20 @@ class BarberBot:
     # ======= Client Mode Logic ======= #
     async def enter_client_mode(self, update: Update, context: CallbackContext):
         """Enter client mode"""
-        await update.message.reply_text(
+        loading_msg = await update.message.reply_text(
             "🔄 Switching to Client Mode...\n\n"
-            "You now have access to all client features. \n"
-            "Use /switch_role to change to barber mode.",
+            "You now have access to all client features. \n",
             reply_markup=ReplyKeyboardRemove()
         )
+
+        # wait for 2 seconds 
+        await asyncio.sleep(1)
+
+        # Delete the loading message
+        try:
+            await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=loading_msg.message_id)
+        except Exception as e:
+            print(f"Error deleting loading message: {e}")
 
         try:
             await client_menu(update, context)  # Call menu to show the main menu
@@ -138,10 +147,17 @@ class BarberBot:
     async def switch_role(self, update: Update, context: CallbackContext):
         """Allow user to switch roles between barber and client."""
         user_id = update.effective_user.id
+
+        if user_id not in self.user_roles:
+            msg = await update.message.reply_text(
+                "❗ You need to select a role first. Use /start to begin.",
+            )
+            HelperUtils.store_message_id(context, msg.message_id)
+            return SELECTING_ROLE
         
         keyboard = [
-            [KeyboardButton("💼 I'm a Barber")],
-            [KeyboardButton("👤 I'm a Client")]
+            [KeyboardButton("👨‍🔧 Switch to Barber")],
+            [KeyboardButton("👤 Switch to Client")]
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
         
@@ -161,35 +177,25 @@ class BarberBot:
         if user_role == "client":
             # Use client-side cancel function
             try:
-                await cancel(update, context)
+                await client_cancel(update, context)
             except Exception as e:
                 print(f"Error calling client cancel: {e}")
                 await update.message.reply_text("❌ Operation cancelled.")
             
             return CLIENT_MODE
         
-        else:
+        elif user_role == "barber":
             # For barber mode use the barber's cancel logic
             pass
-    
-        # # Clear previous messages
-        # try:
-        #     current_messages_id = update.effective_chat.id
-        #     await HelperUtils.clear_previous_messages(context, current_messages_id)
-        # except Exception as e:
-        #     print(f"Error clearing previous messages: {e}")
-
-        # await update.message.reply_text(
-        #     "❌ Operation cancelled. You can start over with /start.",
-        #     reply_markup=ReplyKeyboardRemove()
-        # )
-
-        # Default fallback
-        await update.message.reply_text(
-            "❌ Operation cancelled. Use /start to begin again.",
-            reply_markup=ReplyKeyboardRemove()
-        )
-        return SELECTING_ROLE
+        
+        else:
+            # Default fallback
+            self.user_roles.pop(user_id, None)  # Remove user role if exists
+            await update.message.reply_text(
+                "❌ Operation cancelled. Use /start to begin again.",
+                reply_markup=ReplyKeyboardRemove()
+            )
+            return SELECTING_ROLE
     
     async def handle_unknown_messages(self, update: Update, context: CallbackContext):
         """Handle unknown messages."""
@@ -223,6 +229,12 @@ class BarberBot:
 
         # Add role selection handler first
         app.add_handler(role_selection_handler)
+
+        # Always handle /switch_role, even outside conversation
+        app.add_handler(CommandHandler("switch_role", self.switch_role))
+
+        # Always handle /cancel, even outside conversation
+        app.add_handler(CommandHandler("cancel", self.unified_cancel))
 
         # Add unified command handlers
 

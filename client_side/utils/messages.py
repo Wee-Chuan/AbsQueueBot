@@ -100,4 +100,4 @@ class Messages:
     @staticmethod
     def cancel_operation_message() -> str:
         """Message to inform the user that the operation has been canceled."""
-        return "❌ Operation canceled. Please select an option from the /client_menu. Or select /start to restart the bot."
+        return "❌ Client operation canceled. Please select an option from /client_menu. Or select /start to restart the bot."
