@@ -126,23 +126,23 @@ class BarberBot:
             print(f"Error in barber message handler: {e}")
             await update.message.reply_text("⚠️ Unsure? Click on /barber_menu to see the available options!")
         
-    async def handle_client_messages(self, update: Update, context: CallbackContext):
-        """Handle messages when in client mode"""
-        user_id = update.effective_user.id
+    # async def handle_client_messages(self, update: Update, context: CallbackContext):
+    #     """Handle messages when in client mode"""
+    #     user_id = update.effective_user.id
         
-        # Check if it's a role switch command
-        if update.message.text == "/switch_role":
-            return await self.switch_role(update, context)
+    #     # Check if it's a role switch command
+    #     if update.message.text == "/switch_role":
+    #         return await self.switch_role(update, context)
         
-        # Use the existing client-side message handler
-        try:
-            msg = await update.effective_message.reply_text("⚠️ Unsure? Click on /client_menu to see the available options! Or select /start to restart the bot.")
-            HelperUtils.store_message_id(context, msg.message_id)
-        except Exception as e:
-            print(f"Error in client message handler: {e}")
-            await update.message.reply_text("⚠️ Unsure? Click on /client_menu to see the available options! Or select /start to restart the bot.")
+    #     # Use the existing client-side message handler
+    #     try:
+    #         msg = await update.effective_message.reply_text("⚠️ Unsure? Click on /client_menu to see the available options! Or select /start to restart the bot.")
+    #         HelperUtils.store_message_id(context, msg.message_id)
+    #     except Exception as e:
+    #         print(f"Error in client message handler: {e}")
+    #         await update.message.reply_text("⚠️ Unsure? Click on /client_menu to see the available options! Or select /start to restart the bot.")
         
-        return CLIENT_MODE
+    #     return CLIENT_MODE
     
     async def switch_role(self, update: Update, context: CallbackContext):
         """Allow user to switch roles between barber and client."""
@@ -216,9 +216,6 @@ class BarberBot:
                 BARBER_MODE: [
                     MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_barber_messages)
                 ],
-                CLIENT_MODE: [
-                    MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_client_messages)
-                ]
             },
             fallbacks=[
                 CommandHandler("cancel", self.unified_cancel), 

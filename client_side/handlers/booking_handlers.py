@@ -454,6 +454,7 @@ async def search_barber(update: Update, context: CallbackContext) -> int:
     # Get barber name from message or callback query
     if update.message:
         barber_name = update.message.text                                   # Extract the barber's name from the message
+        print(f"Barber name from message: {barber_name}")
         HelperUtils.set_user_data(context, "barber_name", barber_name)
         HelperUtils.store_message_id(context, update.message.message_id)    # Store the user's search message ID
     elif update.callback_query:
@@ -472,6 +473,7 @@ async def search_barber(update: Update, context: CallbackContext) -> int:
 
     try:
         barber_info = Booking.search_barber_by_name(barber_name, db)
+        print("Barber Info", barber_info)
 
         if not barber_info:
             error_message = Messages.error_message("barber_not_found")
