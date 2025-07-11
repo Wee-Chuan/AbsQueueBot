@@ -71,11 +71,11 @@ class BarberBot:
         """Handle role selection by the user."""
         user_id = update.effective_user.id
         selected_role = update.message.text
-
+        print(selected_role)
         if "Barber" in selected_role:
             self.user_roles[user_id] = "barber"
             await self.enter_barber_mode(update, context)
-            return BARBER_MODE
+            return ConversationHandler.END
         
         elif "Client" in selected_role:
             self.user_roles[user_id] = "client"
@@ -89,18 +89,20 @@ class BarberBot:
     # ======= Barber Mode Logic ======= #    
     async def enter_barber_mode(self, update: Update, context: CallbackContext):
         """Enter barber mode"""
+        
+        keyboard = [[InlineKeyboardButton("Login", callback_data="login")]]
         await update.message.reply_text(
             "🔄 Switching to Barber Mode...\n\n"
             "You now have access to all barber features, please login to continue."
             "Use /switch_role to change to client mode.",
-            reply_markup=ReplyKeyboardRemove()
+            reply_markup=InlineKeyboardMarkup(keyboard)
         )
 
-        try:
-            await login_dev(update, context)
-        except Exception as e:
-            await update.message.reply_text(f"An error occurred in Barber Mode: {str(e)}")
-            return SELECTING_ROLE
+        # try:
+            
+        # except Exception as e:
+        #     await update.message.reply_text(f"An error occurred in Barber Mode: {str(e)}")
+        #     return SELECTING_ROLE
     
     # ======= Client Mode Logic ======= #
     async def enter_client_mode(self, update: Update, context: CallbackContext):
@@ -235,6 +237,7 @@ class BarberBot:
                 CommandHandler("cancel", self.unified_cancel), 
                 CommandHandler("switch_role", self.switch_role)
             ],
+            per_user=True,
             allow_reentry=True
         )
 
@@ -286,7 +289,7 @@ class BarberBot:
         
         # COMMAND HANDLERS
         #/start
-        app.add_handler(CommandHandler("start", start))
+        #app.add_handler(CommandHandler("start", start))
         
         #/menu
         app.add_handler(CommandHandler("menu", menu))

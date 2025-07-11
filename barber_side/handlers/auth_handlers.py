@@ -108,6 +108,7 @@ async def start_login(update: Update, context: CallbackContext) -> int:
             email_prompt = await update.callback_query.message.reply_text("Please enter your email.")
             context.user_data.setdefault('messages_to_delete', []).append(email_prompt.message_id)
 
+        print("returning EMAIL...")
         return EMAIL  # This returns the EMAIL state to wait for user input
 
 # Get the password after email
@@ -130,7 +131,7 @@ async def get_login_details(update: Update, context: CallbackContext) -> int:
     # Retrieve saved user data
     email = context.user_data.get("login_email")
     password = update.message.text  # Get password from the latest message
-    
+    print(password)
     messages_to_delete = context.user_data.get('messages_to_delete', [])
     messages_to_delete.append(update.message.message_id)
     if not email or not password:
@@ -140,21 +141,34 @@ async def get_login_details(update: Update, context: CallbackContext) -> int:
     login_result = login_user(email, password)
 
     if login_result["success"]:
+        
         user_id = login_result["user_id"]
         user_sessions[update.message.from_user.id] = user_id
-
+        
         # Query Firestore for barber data
         collection_ref = db.collection('barbers')
+        
         query = collection_ref.where("email", "==", email)
+        
+        
         result = query.stream()
-        result_list = list(result)
-
+        print(result)
+        print("1")
+        result_list = []
+        for doc in result:
+            print(doc)
+            result_list.append(doc)
+            if len(result_list) > 1:  # Safety check
+                break
+        print("2")
+        
+        
         # Check if barber exists (maybe suspended or something?)
         if not result_list:
             print("LOGGED IN BUT NO DATA!!!!! ")
             await update.message.reply_text("There was a problem logging in to your account.\nPlease contact customer service for more details!")
             return ConversationHandler.END
-
+        
         # Save barber object to context.user_data
         barber_doc = result_list[0].to_dict()
         current_barber = Barber(
@@ -164,6 +178,7 @@ async def get_login_details(update: Update, context: CallbackContext) -> int:
             desc_id=barber_doc.get('description_id'),
             postal=barber_doc.get('postal code'),
             region=barber_doc.get('region'),
+            portfolio=barber_doc.get('portfolio_link'),
             doc_id=result_list[0].id,
         )
         context.user_data['current_user'] = current_barber

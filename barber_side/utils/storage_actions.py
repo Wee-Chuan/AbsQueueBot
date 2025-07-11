@@ -1,33 +1,41 @@
 import pytz
-from google.cloud import storage
+# from google.cloud import storage
+
+# Keep only Firebase imports
+from firebase_admin import storage
 
 from barber_side.handlers.menu_handlers import clear_menu
-
-def initialize_storage_client():
-    # Create a client for Google Cloud Storage
-    storage_client = storage.Client()
-    bucket_name = "absqueuebot.firebasestorage.app"  # This is the correct bucket name
-    bucket = storage_client.bucket(bucket_name)
-    return bucket
 
 from datetime import datetime as dt
 from datetime import timedelta
 
-# Function to get signed URL for the image with correct expiration time
+def initialize_storage_client():
+    # Initialize Firebase if not already done
+    if not firebase_admin._apps:
+        # Initialize with your Firebase config
+        cred = firebase_admin.credentials.Certificate("path/to/serviceAccountKey.json")
+        firebase_admin.initialize_app(cred, {
+            'storageBucket': 'your-project-id.appspot.com'  # Your actual bucket name
+        })
+    
+    # Get the default bucket
+    bucket = storage.bucket()
+    return bucket
+
 def generate_signed_url(blob_name, expiration_minutes=30):
     try:
-        # Create a blob object
         bucket = initialize_storage_client()
         blob = bucket.blob(blob_name)
-
-        # Ensure proper timezone handling for expiration
-        expiration_time = dt.now(pytz.timezone("Asia/Singapore")) + timedelta(minutes=expiration_minutes)
         
-        # Generate the signed URL with correct expiration time
-        signed_url = blob.generate_signed_url(expiration=expiration_time)
+        # Generate signed URL (expiration in seconds)
+        signed_url = blob.generate_signed_url(
+            version="v4",
+            expiration=datetime.timedelta(minutes=expiration_minutes),
+            method="GET"
+        )
         return signed_url
     except Exception as e:
-        print(f"⚠️ Error generating signed URL: {e}")
+        print(f"Error generating signed URL: {e}")
         return None
 
 # Telegram Bot Function to Display the Image
@@ -37,7 +45,7 @@ async def display_start_image(update, context, blob_name):
         signed_url = generate_signed_url(blob_name)
         
         if not signed_url:
-            await update.message.reply_text("Failed to fetch image from storage.")
+            await update.callback_query.message.reply_text("Failed to fetch image from storage.")
             return
     
         await update.message.reply_photo(photo=signed_url, caption="Welcome to Absqueue! We're glad to have you on board 🚀")
@@ -52,7 +60,7 @@ async def display_barber_image(update, context, blob_name, caption):
         signed_url = generate_signed_url(blob_name)
         
         if not signed_url:
-            await update.message.reply_text("Failed to fetch image from storage.")
+            await update.callback_query.message.reply_text("Failed to fetch image from storage.")
             return
 
         message = update.message or update.callback_query.message
@@ -68,8 +76,7 @@ async def display_barber_image(update, context, blob_name, caption):
 ### CLEANING open slots (expired)
 import datetime
 from google.cloud import firestore
-
-db = firestore.Client()
+from barber_side.utils.globals import *
 
 import pytz
 from firebase_admin import firestore
