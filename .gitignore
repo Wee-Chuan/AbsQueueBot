@@ -3,3 +3,4 @@ telebot
 __pycache__/
 .venv
 telegram-mini-app/node_modules/
+absqueuebot-firebase-adminsdk-fbsvc-2b8bceded6.json
