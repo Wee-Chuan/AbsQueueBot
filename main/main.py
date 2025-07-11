@@ -17,6 +17,21 @@ from client_side.handlers.view_bookings_handlers import view_bookings_handler
 from shared.utils import HelperUtils
 
 # Import barber-side modules
+# Local imports (group them by functionality for better readability)
+from barber_side.utils.globals import *
+from barber_side.utils.storage_actions import display_start_image
+
+# Handlers for various functionalities (from barber_side.handlers)
+from barber_side.handlers.menu_handlers import menu
+from barber_side.handlers.auth_handlers import *
+from barber_side.handlers.calendar import calendar_handler
+from barber_side.handlers.description_handlers import description_conv_handler
+from barber_side.handlers.service_handlers import main_services_conversation, services_menu
+from barber_side.handlers.appointment_handlers import appointments_conv_handler
+from barber_side.handlers.earnings_handlers import earnings_handler
+from barber_side.handlers.profile_handlers import profile_conversation_handler
+from barber_side.handlers.portfolio_handlers import portfolio_conv_handler
+
 
 
 # Define states
@@ -82,8 +97,7 @@ class BarberBot:
         )
 
         try:
-            # Call barber's logic here
-            pass  # Placeholder for barber mode logic
+            await login_dev(update, context)
         except Exception as e:
             await update.message.reply_text(f"An error occurred in Barber Mode: {str(e)}")
             return SELECTING_ROLE
@@ -241,7 +255,41 @@ class BarberBot:
         app.add_handler(view_bookings_handler)
 
         # Add barber side handlers
-        pass  # Add barber mode handlers here if needed
+        ### Add conversation handlers ###
+        #/login_dev
+        app.add_handler(CommandHandler("login_dev", login_dev))
+        
+        #/login
+        app.add_handler(login_conversation_handler)
+        
+        #/calendar
+        app.add_handler(calendar_handler)
+        
+        #profile
+        app.add_handler(profile_conversation_handler)
+
+        #services
+        app.add_handler(main_services_conversation)
+        
+        #descriptions
+        app.add_handler(description_conv_handler)
+        
+        # appointments
+        app.add_handler(appointments_conv_handler)
+        # app.add_handler(day_view_handler)
+        
+        # earnings
+        app.add_handler(earnings_handler)
+            
+        # portfolio
+        app.add_handler(portfolio_conv_handler)
+        
+        # COMMAND HANDLERS
+        #/start
+        app.add_handler(CommandHandler("start", start))
+        
+        #/menu
+        app.add_handler(CommandHandler("menu", menu))
 
         # Handle unknown messages
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_unknown_messages))

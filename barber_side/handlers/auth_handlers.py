@@ -1,0 +1,223 @@
+# Telegram imports
+from telegram.constants import ParseMode
+from telegram import Update
+from telegram.ext import (
+    CallbackContext,
+    ConversationHandler,
+    CommandHandler,
+    MessageHandler,
+    filters,
+    CallbackQueryHandler
+)
+
+# Third-party imports
+import requests
+
+# Local imports
+from barber_side.handlers.menu_handlers import menu
+from barber_side.utils.globals import *
+from barber_side.classes.classes import *
+
+
+# quick login for devs (luqqycutz account)
+async def login_dev(update: Update, context: CallbackContext) -> None:
+    email = "luqmanarifin49@gmail.com"
+    password = "Starwars91!"
+    
+    login_result = login_user(email, password)
+
+    if login_result["success"]:
+        user_id = login_result["user_id"]
+        user_sessions[update.message.from_user.id] = user_id
+
+        # Query Firestore for barber data
+        collection_ref = db.collection('barbers')
+        query = collection_ref.where("email", "==", email)
+        result = query.stream()
+        result_list = list(result)
+
+        # Save barber object to context.user_data
+        barber_doc = result_list[0].to_dict()
+        current_barber = Barber(
+            address=barber_doc.get('address'),
+            email=barber_doc.get('email'),
+            name=barber_doc.get('name'),
+            desc_id=barber_doc.get('description_id'),
+            postal=barber_doc.get('postal code'),
+            region=barber_doc.get('region'),
+            portfolio = barber_doc.get('portfolio_link'),
+            doc_id=result_list[0].id,
+        )
+        context.user_data['current_user'] = current_barber
+        context.user_data['logged_in'] = True
+        print("\n✅ Barber object saved to context.user_data\n")
+
+        welcome_message = f"✅ Welcome back, *{current_barber.name}* 👋"
+        await update.message.reply_text(welcome_message, parse_mode=ParseMode.MARKDOWN_V2)
+        await menu(update, context)
+    else:
+        await update.message.reply_text(f"❌ Login failed! {login_result['error']}")
+
+# helper for Firebase Authentication
+def login_user(email, password):
+    payload = {
+        "email": email,
+        "password": password,
+        "returnSecureToken": True
+    }
+    response = requests.post(FIREBASE_AUTH_URL, json=payload)
+    data = response.json()
+
+    if "idToken" in data:
+        return {"success": True, "user_id": data["localId"], "token": data["idToken"]}
+    else:
+        return {"success": False, "error": data.get("error", {}).get("message", "Login failed")}
+
+# States for ConversationHandler
+EMAIL, PASSWORD = range(2)
+
+# entry point into conversation (asks for email)
+async def start_login(update: Update, context: CallbackContext) -> int:
+    print("starting login conversation")  # Debug statement
+    
+    # Remove the previous message with the inline buttons
+    query = update.callback_query
+    if query:
+        await query.message.delete()
+    
+    # checks if user is already logged in
+    logged_in = context.user_data.get('logged_in')
+    curr_user = context.user_data.get('current_user')
+
+    if logged_in:
+        print("User is already logged in")  # Debug statement
+        welcome_message = f"✅ You are currently logged in as *{curr_user.name}* 💈"
+        await update.message.reply_text(welcome_message, parse_mode=ParseMode.MARKDOWN_V2)
+        return ConversationHandler.END  # Exit if already logged in
+    
+    # not logged in
+    else:
+        print("User is not logged in. Requesting email...")  # Debug statement
+        
+        # Prompt the user to enter their email
+        if update.message: # /login command
+            email_prompt = await update.message.reply_text("Please enter your email.")
+            context.user_data.setdefault('messages_to_delete', []).append(email_prompt.message_id)
+
+        elif update.callback_query: # Login button
+            email_prompt = await update.callback_query.message.reply_text("Please enter your email.")
+            context.user_data.setdefault('messages_to_delete', []).append(email_prompt.message_id)
+
+        return EMAIL  # This returns the EMAIL state to wait for user input
+
+# Get the password after email
+async def get_password(update: Update, context: CallbackContext) -> int:
+    print(f"Received email: {update.message.text}")  # Debug line to ensure we captured the email
+    context.user_data["login_email"] = update.message.text  # Temporarily store email
+
+    # Ask for the password
+    password_prompt = await update.message.reply_text("Please enter your password.")
+    
+    # add message_id to list to delete
+    messages_to_delete = context.user_data.get('messages_to_delete', [])
+    messages_to_delete.append(password_prompt.message_id)
+    messages_to_delete.append(update.message.message_id)
+
+    return PASSWORD
+
+# Final step: Attempt to log in
+async def get_login_details(update: Update, context: CallbackContext) -> int:
+    # Retrieve saved user data
+    email = context.user_data.get("login_email")
+    password = update.message.text  # Get password from the latest message
+    
+    messages_to_delete = context.user_data.get('messages_to_delete', [])
+    messages_to_delete.append(update.message.message_id)
+    if not email or not password:
+        await update.message.reply_text("❌ Missing email or password. Please try again.")
+        return ConversationHandler.END
+    
+    login_result = login_user(email, password)
+
+    if login_result["success"]:
+        user_id = login_result["user_id"]
+        user_sessions[update.message.from_user.id] = user_id
+
+        # Query Firestore for barber data
+        collection_ref = db.collection('barbers')
+        query = collection_ref.where("email", "==", email)
+        result = query.stream()
+        result_list = list(result)
+
+        # Check if barber exists (maybe suspended or something?)
+        if not result_list:
+            print("LOGGED IN BUT NO DATA!!!!! ")
+            await update.message.reply_text("There was a problem logging in to your account.\nPlease contact customer service for more details!")
+            return ConversationHandler.END
+
+        # Save barber object to context.user_data
+        barber_doc = result_list[0].to_dict()
+        current_barber = Barber(
+            address=barber_doc.get('address'),
+            email=barber_doc.get('email'),
+            name=barber_doc.get('name'),
+            desc_id=barber_doc.get('description_id'),
+            postal=barber_doc.get('postal code'),
+            region=barber_doc.get('region'),
+            doc_id=result_list[0].id,
+        )
+        context.user_data['current_user'] = current_barber
+        context.user_data['logged_in'] = True
+        print("\n✅ Barber object saved to context.user_data\n")
+        
+        # Send the welcome message
+        welcome_message = f"✅ Login successful\\! 🎉\nWelcome back, *{current_barber.name}* 👋"
+        await update.message.reply_text(welcome_message, parse_mode=ParseMode.MARKDOWN_V2)
+
+    else:
+        error_message = f"Invalid Login Credentials 🚫"
+        await update.message.reply_text(error_message, parse_mode=ParseMode.MARKDOWN_V2)
+    
+    # Delete the past 4 messages (email and password prompts and responses)
+    try:
+        # Use context.bot instead of update.bot
+        await context.bot.delete_messages(chat_id=update.message.chat_id, message_ids=messages_to_delete)
+    except Exception as e:
+        print(f"Error deleting message: {e}")
+        
+    # Clear sensitive data
+    context.user_data['messages_to_delete'] = []
+    context.user_data.pop("login_email", None)
+    context.user_data.pop("login_password", None)
+
+    return ConversationHandler.END
+
+async def resend_command(update: Update, context: CallbackContext) -> int:
+    print("hello")
+    if update.message:
+        context.application.create_task(context.application.process_update(update))
+    return ConversationHandler.END
+
+async def back_to_main(update:Update, context:CallbackContext):
+    print("back tomain HAHAHAHHAHAHAHHAHAAHHA")
+    await menu(update, context)
+    return ConversationHandler.END
+
+# Define the login conversation handler
+# The entry point for the /login command is already here:
+login_conversation_handler = ConversationHandler(
+    entry_points=[CommandHandler("login", start_login),  # This works when /login is typed
+                  CallbackQueryHandler(start_login, pattern='login')],  # Trigger for button press
+    states={
+        EMAIL: [MessageHandler(filters.TEXT  & ~filters.COMMAND, get_password)],
+        PASSWORD: [MessageHandler(filters.TEXT  & ~filters.COMMAND, get_login_details)],
+    },
+    fallbacks=[
+        CommandHandler("menu", back_to_main)
+    ],
+    per_user=True,
+    allow_reentry=True
+)
+
+
+
