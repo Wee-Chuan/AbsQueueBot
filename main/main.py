@@ -33,9 +33,8 @@ from barber_side.handlers.profile_handlers import profile_conversation_handler
 from barber_side.handlers.portfolio_handlers import portfolio_conv_handler
 
 
-
 # Define states
-SELECTING_ROLE, BARBER_MODE, CLIENT_MODE = range(3)
+SELECTING_ROLE = range(1)
 
 ### Loading Environmental Variables ###
 load_dotenv()
@@ -71,7 +70,7 @@ class BarberBot:
         """Handle role selection by the user."""
         user_id = update.effective_user.id
         selected_role = update.message.text
-        print(selected_role)
+        print("Selected Role: ", selected_role)
         if "Barber" in selected_role:
             self.user_roles[user_id] = "barber"
             await self.enter_barber_mode(update, context)
@@ -80,7 +79,7 @@ class BarberBot:
         elif "Client" in selected_role:
             self.user_roles[user_id] = "client"
             await self.enter_client_mode(update, context)
-            return CLIENT_MODE
+            return ConversationHandler.END
         
         else:
             await update.message.reply_text("Invalid selection. Please select a valid role.")
@@ -91,12 +90,14 @@ class BarberBot:
         """Enter barber mode"""
         
         keyboard = [[InlineKeyboardButton("Login", callback_data="login")]]
-        await update.message.reply_text(
+        msg = await update.message.reply_text(
             "🔄 Switching to Barber Mode...\n\n"
-            "You now have access to all barber features, please login to continue."
-            "Use /switch_role to change to client mode.",
+            "You now have access to all barber features, please login to continue.",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
+
+        # Store the message ID for later deletion
+        HelperUtils.store_message_id(context, msg.message_id)
 
         # try:
             
@@ -128,62 +129,27 @@ class BarberBot:
             await update.message.reply_text(f"An error occurred in Client Mode: {str(e)}")
             return SELECTING_ROLE
     
-    async def handle_barber_messages(self, update: Update, context: CallbackContext):
-        """Handle messages when in barber mode"""
-        user_id = update.effective_user.id
-        
-        # Check if it's a role switch command
-        if update.message.text == "/switch_role":
-            return await self.switch_role(update, context)
-        
-        try:
-            pass
-        except Exception as e:
-            print(f"Error in barber message handler: {e}")
-            await update.message.reply_text("⚠️ Unsure? Click on /barber_menu to see the available options!")
-        
-    # async def handle_client_messages(self, update: Update, context: CallbackContext):
-    #     """Handle messages when in client mode"""
-    #     user_id = update.effective_user.id
-        
-    #     # Check if it's a role switch command
-    #     if update.message.text == "/switch_role":
-    #         return await self.switch_role(update, context)
-        
-    #     # Use the existing client-side message handler
-    #     try:
-    #         msg = await update.effective_message.reply_text("⚠️ Unsure? Click on /client_menu to see the available options! Or select /start to restart the bot.")
-    #         HelperUtils.store_message_id(context, msg.message_id)
-    #     except Exception as e:
-    #         print(f"Error in client message handler: {e}")
-    #         await update.message.reply_text("⚠️ Unsure? Click on /client_menu to see the available options! Or select /start to restart the bot.")
-        
-    #     return CLIENT_MODE
-    
     async def switch_role(self, update: Update, context: CallbackContext):
         """Allow user to switch roles between barber and client."""
         user_id = update.effective_user.id
 
         if user_id not in self.user_roles:
             msg = await update.message.reply_text(
-                "❗ You need to select a role first. Use /start to begin.",
+                "⚠️ You need to select a role first. Use /start to begin.",
             )
             HelperUtils.store_message_id(context, msg.message_id)
-            return SELECTING_ROLE
+            return ConversationHandler.END
         
-        keyboard = [
-            [KeyboardButton("👨‍🔧 Switch to Barber")],
-            [KeyboardButton("👤 Switch to Client")]
-        ]
-        reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
+        # Remove the user's current role
+        self.user_roles.pop(user_id, None)
         
-        await update.message.reply_text(
-            "🔄 Switch Role\n\n"
-            "Please select your new role:",
-            reply_markup=reply_markup
+        msg = await update.message.reply_text(
+            "🔄 Switching Role\n\n"
+            "To switch roles, please use /start and select your new role.",
         )
-        
-        return SELECTING_ROLE
+
+        HelperUtils.store_message_id(context, msg.message_id)
+        ConversationHandler.END  # End current conversation
     
     async def unified_cancel(self, update: Update, context: CallbackContext):
         """Cancel the current operation and reset the conversation."""
@@ -197,21 +163,21 @@ class BarberBot:
             except Exception as e:
                 print(f"Error calling client cancel: {e}")
                 await update.message.reply_text("❌ Operation cancelled.")
-            
-            return CLIENT_MODE
         
-        elif user_role == "barber":
-            # For barber mode use the barber's cancel logic
-            pass
+        # elif user_role == "barber":
+        #     # For barber mode use the barber's cancel logic
+        #     pass
         
         else:
             # Default fallback
             self.user_roles.pop(user_id, None)  # Remove user role if exists
+            chat_id = update.effective_chat.id
+            await HelperUtils.clear_previous_messages(context, chat_id)
             await update.message.reply_text(
                 "❌ Operation cancelled. Use /start to begin again.",
                 reply_markup=ReplyKeyboardRemove()
             )
-            return SELECTING_ROLE
+            ConversationHandler.END  # End current conversation
     
     async def handle_unknown_messages(self, update: Update, context: CallbackContext):
         """Handle unknown messages."""
@@ -228,9 +194,6 @@ class BarberBot:
             states={
                 SELECTING_ROLE: [
                     MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_role_selection)
-                ],
-                BARBER_MODE: [
-                    MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_barber_messages)
                 ],
             },
             fallbacks=[
@@ -293,6 +256,9 @@ class BarberBot:
         
         #/menu
         app.add_handler(CommandHandler("menu", menu))
+
+        # Handle chatbot
+        app.add_handler(CommandHandler("chat", self.chatbot_handler.handle_chatbot))
 
         # Handle unknown messages
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_unknown_messages))

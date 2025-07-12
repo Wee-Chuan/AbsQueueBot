@@ -12,7 +12,7 @@ from shared.utils import HelperUtils
 from io import BytesIO
 
 async def client_menu(update: Update, context: CallbackContext) -> None:
-    """Handler for /menu command - shows the main options"""
+    """Handler for /client_menu command - shows the main options"""
     # Reset copnversation state and clear previous messages
     await HelperUtils.clear_previous_messages(context, update.effective_chat.id)
 

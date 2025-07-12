@@ -190,7 +190,7 @@ async def get_login_details(update: Update, context: CallbackContext) -> int:
         await update.message.reply_text(welcome_message, parse_mode=ParseMode.MARKDOWN_V2)
 
     else:
-        error_message = f"Invalid Login Credentials 🚫"
+        error_message = f"Invalid Login Credentials 🚫 Try again with /login"
         await update.message.reply_text(error_message, parse_mode=ParseMode.MARKDOWN_V2)
     
     # Delete the past 4 messages (email and password prompts and responses)
