@@ -257,9 +257,6 @@ class BarberBot:
         #/menu
         app.add_handler(CommandHandler("menu", menu))
 
-        # Handle chatbot
-        app.add_handler(CommandHandler("chat", self.chatbot_handler.handle_chatbot))
-
         # Handle unknown messages
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_unknown_messages))
     
