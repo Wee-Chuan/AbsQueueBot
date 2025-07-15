@@ -54,7 +54,7 @@ async def display_start_image(update, context, blob_name):
         await update.message.reply_text(f"⚠️ Error displaying image: {e}")
 
 # Telegram Bot Function to Display the Image
-async def display_barber_image(update, context, blob_name, caption):
+async def display_barber_image(update, context, blob_name, caption, reply_markup = None):
     try:
         # Generate signed URL
         signed_url = generate_signed_url(blob_name)
@@ -64,7 +64,7 @@ async def display_barber_image(update, context, blob_name, caption):
             return
 
         message = update.message or update.callback_query.message
-        message = await message.reply_photo(photo=signed_url, caption = caption)
+        message = await message.reply_photo(photo=signed_url, caption = caption, reply_markup=reply_markup)
         await clear_menu(update, context)
         
         menu_messages = context.user_data.get('menu_message', [])

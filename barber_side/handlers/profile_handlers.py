@@ -34,22 +34,31 @@ async def profile_details(update: Update, context: CallbackContext) -> int:
         
         caption = f"Barber Name: {barber_name}\nEmail: {email}\nRegion: {region}\nPostal Code: {postal_code}\nAddress: {address}\nPortfolio Link: {portfolio}"
         
-        await display_barber_image(update, context,"luqmanarifin49@gmail.png", caption)
-        await editting_menu(update, context)
-        return EDITTING  
+        # Create back button
+        keyboard = [
+            [InlineKeyboardButton("⬅️ Back", callback_data="backs")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await display_barber_image(update, context, "luqmanarifin49@gmail.png", caption, reply_markup)
+        return BACK
 
-    except Exception as e:  # Catches any exception
-        await update.message.reply_text("Log In Required")
-        return ConversationHandler.END  # End the conversation
+    except Exception as e:
+        await update.message.reply_text(f"⚠️ Error: {e}")
 
-async def editting_menu(update:Update, context:CallbackContext) -> int:
+async def editting_menu(update:Update, context:CallbackContext) -> int: # doesnt work now
     back_button = InlineKeyboardButton("Back", callback_data="back")
-    reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("Edit Name", callback_data="edit_name"), 
-         InlineKeyboardButton("Edit Email", callback_data="edit_email")],
-        [InlineKeyboardButton("Edit Address and Post Code", callback_data="edit_address"),
-         InlineKeyboardButton("Edit Photo", callback_data="edit_photo")], [back_button]])
+    # reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("Edit Name", callback_data="edit_name"), 
+    #      InlineKeyboardButton("Edit Email", callback_data="edit_email")],
+    #     [InlineKeyboardButton("Edit Address and Post Code", callback_data="edit_address"),
+    #      InlineKeyboardButton("Edit Photo", callback_data="edit_photo")], [back_button]])
+    
+    reply_markup = InlineKeyboardMarkup([[back_button]])
 
-    await update.callback_query.message.reply_text("What would you like to edit?", reply_markup=reply_markup)
+    message = await update.callback_query.message.reply_text("What would you like to edit?", reply_markup=reply_markup)
+    
+    menu_messages = context.user_data.get('menu_message', [])
+    menu_messages.append(message.message_id)
 
 # Step 2: Handle the "Back" button press
 async def back_button_handler(update: Update, context: CallbackContext) -> int:
@@ -60,23 +69,27 @@ async def back_button_handler(update: Update, context: CallbackContext) -> int:
 
     return ConversationHandler.END  # End the conversation or go back to another state
 
-async def edit_name(update:Update, context:CallbackContext) -> int:
-    keyboard = [
-        [InlineKeyboardButton("❌ Cancel", callback_data="cancel_editting")],
-    ]
 
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    message = await update.callback_query.message.edit_text("Enter your new name:", reply_markup=reply_markup)
-    
-    edit_messages = context.user_data.get('edit_messages', [])
-    edit_messages.append(message.message_id)
-    return EDIT_NAME
+# ### editting name
+# async def edit_name(update:Update, context:CallbackContext) -> int:
+#     keyboard = [
+#         [InlineKeyboardButton("❌ Cancel", callback_data="cancel_editting")],
+#     ]
 
-async def receive_name(update:Update, context:CallbackContext) -> int :
+#     reply_markup = InlineKeyboardMarkup(keyboard)
+    
+#     message = await update.callback_query.message.edit_text("Enter your new name:", reply_markup=reply_markup)
+    
+#     edit_messages = context.user_data.get('edit_messages', [])
+#     edit_messages.append(message.message_id)
+#     return EDIT_NAME
+
+# async def receive_name(update:Update, context:CallbackContext) -> int :
     
     
-    return EDITTING
+#     return EDITTING
+
+
 
 # fallbacks
 async def back_to_main(update:Update, context:CallbackContext):
@@ -95,8 +108,8 @@ async def cancel_editting(update:Update, context:CallbackContext):
 profile_conversation_handler = ConversationHandler(
     entry_points=[CallbackQueryHandler(profile_details, pattern=r"^profile_details$")],  # Triggered by the "Profile Details" button
     states={
-        EDITTING: [CallbackQueryHandler(edit_name, pattern=r"^edit_name$")],
-        EDIT_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_name)]
+        BACK: [CallbackQueryHandler(back_to_main, pattern=r"^back$")],
+        # EDIT_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_name)]
     },
     fallbacks=[
         CallbackQueryHandler(back_button_handler, pattern="back"),
