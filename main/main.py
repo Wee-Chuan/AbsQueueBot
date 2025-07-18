@@ -89,7 +89,7 @@ class BarberBot:
     async def enter_barber_mode(self, update: Update, context: CallbackContext):
         """Enter barber mode"""
         
-        keyboard = [[InlineKeyboardButton("Login", callback_data="login")]]
+        keyboard = [[InlineKeyboardButton("Login", callback_data="login")], [InlineKeyboardButton("Sign Up", callback_data="signup")]]
         msg = await update.message.reply_text(
             "🔄 Switching to Barber Mode...\n\n"
             "You now have access to all barber features, please login to continue.",

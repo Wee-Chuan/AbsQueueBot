@@ -5,7 +5,7 @@ from barber_side.utils.globals import *
 import asyncio
 
 class Barber:
-    def __init__(self, name, email, address, postal, region, desc_id, doc_id, portfolio, services=None, notify = False):
+    def __init__(self, name, email, address, postal, region, doc_id, desc_id=None, portfolio=None, services=None, notify = False):
         self.name = name
         self.email = email
         self.address = address

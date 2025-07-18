@@ -188,6 +188,7 @@ async def get_login_details(update: Update, context: CallbackContext) -> int:
         # Send the welcome message
         welcome_message = f"✅ Login successful\\! 🎉\nWelcome back, *{current_barber.name}* 👋"
         await update.message.reply_text(welcome_message, parse_mode=ParseMode.MARKDOWN_V2)
+        await menu(update, context)
 
     else:
         error_message = f"Invalid Login Credentials 🚫 Try again with /login"
@@ -234,5 +235,51 @@ login_conversation_handler = ConversationHandler(
     allow_reentry=True
 )
 
+
+# ---- Sign Up Conversation Handler ---- #
+async def get_email_su(update:Update, context:CallbackContext) -> int :
+    # entry
+    pass
+
+async def get_password_su(update:Update, context:CallbackContext) -> int :
+    # save email temporarily in context
+    pass
+
+async def get_name_su(update:Update, context:CallbackContext) -> int :
+    # save name temporarily in context
+    pass
+
+async def get_address_su(update:Update, context:CallbackContext) -> int :
+    # save address temporarily in context
+    pass
+
+async def get_postcode_su(update:Update, context:CallbackContext) -> int :
+    # save postcode temporarily in context
+    # run google maps API to determine region (?)
+    # create barber object 
+    #   class is of structure: (self, name, email, address, postal, region, doc_id, desc_id=None, portfolio=None, services=None, notify = False)
+    
+    pass
+
+async def cancel_sign_up(update:Update, context:CallbackContext) -> int :
+    return ConversationHandler.END
+
+EMAIL_SU,PASSWORD_SU,NAME_SU,ADDRESS_SU,POSTCODE_SU  = range(2)
+
+signup_handler = ConversationHandler(
+    entry_points=[CommandHandler("start", get_email_su)],
+    states={
+        EMAIL_SU: [MessageHandler(filters.TEXT  & ~filters.COMMAND, get_password)],
+        PASSWORD_SU: [MessageHandler(filters.TEXT  & ~filters.COMMAND, get_login_details)],
+        NAME_SU: [MessageHandler(filters.TEXT  & ~filters.COMMAND, get_login_details)],
+        ADDRESS_SU: [MessageHandler(filters.TEXT  & ~filters.COMMAND, get_login_details)],
+        POSTCODE_SU: [MessageHandler(filters.TEXT  & ~filters.COMMAND, get_login_details)],
+    },
+    fallbacks=[
+        CallbackQueryHandler(cancel_sign_up, pattern="cancel_sign_up"),
+    ],
+    per_user=True,
+    allow_reentry=True
+)
 
 
