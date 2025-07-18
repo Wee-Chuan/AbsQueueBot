@@ -264,7 +264,7 @@ async def get_postcode_su(update:Update, context:CallbackContext) -> int :
 async def cancel_sign_up(update:Update, context:CallbackContext) -> int :
     return ConversationHandler.END
 
-EMAIL_SU,PASSWORD_SU,NAME_SU,ADDRESS_SU,POSTCODE_SU  = range(2)
+EMAIL_SU,PASSWORD_SU,NAME_SU,ADDRESS_SU,POSTCODE_SU  = range(5)
 
 signup_handler = ConversationHandler(
     entry_points=[CommandHandler("start", get_email_su)],

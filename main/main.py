@@ -177,7 +177,7 @@ class BarberBot:
                 "❌ Operation cancelled. Use /start to begin again.",
                 reply_markup=ReplyKeyboardRemove()
             )
-            ConversationHandler.END  # End current conversation
+            return ConversationHandler.END  # End current conversation
     
     async def handle_unknown_messages(self, update: Update, context: CallbackContext):
         """Handle unknown messages."""
