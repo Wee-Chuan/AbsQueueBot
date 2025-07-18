@@ -94,20 +94,16 @@
 
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-    <script>
-        // Dynamically load Google Maps API using meta tag key
-        const mapsApiKey = import.meta.env.GEOCODING_API_KEY;
-        const script = document.createElement('script');
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${mapsApiKey}&callback=initMap`;
-        script.async = true;
-        script.defer = true;
-        document.head.appendChild(script);
-    </script>
+    <script
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDHw-39ypHBYZQ8ustR2wqBCuKUPBJ4Lkc&callback=initMap&libraries=marker"
+        async
+        defer
+        loading="async"
+    ></script>
 
     <script>
-    const apiKey = import.meta.env.FIREBASE_API_KEY;
     const firebaseConfig = {
-        apiKey: apiKey,
+        apiKey: "AIzaSyDHw-39ypHBYZQ8ustR2wqBCuKUPBJ4Lkc",
         authDomain: "absqueuebot.firebaseapp.com",
         projectId: "absqueuebot",
         storageBucket: "absqueuebot.appspot.com",
@@ -139,7 +135,8 @@
             mapTypeControl: true,      // Enables map type control (satellite, terrain, etc.)
             fullscreenControl: true,   // Enables fullscreen control (fullscreen icon)
             // Enable "My Location" button (geolocation)
-            geolocationControl: true
+            geolocationControl: true,
+            mapId: "80a3e6a5d1b30a3652dce37a"
         });
 
         // Show user's current location
@@ -154,18 +151,18 @@
                 map.setCenter(userLocation);
 
                 // Add a marker for user's location
-                new google.maps.Marker({
+                const userIcon = document.createElement("div");
+                userIcon.innerHTML = `
+                <svg width="48" height="48" viewBox="0 0 24 24">
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" fill="#4285F4" stroke="#fff" stroke-width="2"/>
+                </svg>
+                `;
+
+                const marker = new google.maps.marker.AdvancedMarkerElement({
                     position: userLocation,
                     map: map,
+                    content: userIcon,
                     title: "You are here",
-                    icon: {
-                        path: google.maps.SymbolPath.CIRCLE,
-                        scale: 8,
-                        fillColor: "#4285F4",
-                        fillOpacity: 1,
-                        strokeColor: "#ffffff",
-                        strokeWeight: 2
-                    }
                 });
             }, (error) => {
                 // Handle errors, such as "user denied" or "location unavailable"
@@ -238,19 +235,20 @@
                             window.userLocationMarker.setMap(null);
                         }
                         
+                        // Create custom marker content
+                        const userIcon = document.createElement("div");
+                        userIcon.innerHTML = `
+                            <svg width="48" height="48" viewBox="0 0 24 24">
+                                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" fill="#4285F4" stroke="#fff" stroke-width="2"/>
+                            </svg>
+                        `;
+
                         // Add new marker
-                        window.userLocationMarker = new google.maps.Marker({
+                        window.userLocationMarker = new google.maps.marker.AdvancedMarkerElement({
                             position: userLocation,
                             map: map,
                             title: "You are here",
-                            icon: {
-                                path: google.maps.SymbolPath.CIRCLE,
-                                scale: 8,
-                                fillColor: "#4285F4",
-                                fillOpacity: 1,
-                                strokeColor: "#ffffff",
-                                strokeWeight: 2
-                            }
+                            content: userIcon 
                         });
                     },
                     (error) => {
@@ -302,10 +300,19 @@
         geocoder.geocode({ address: address }, (results, status) => {
             if (status === "OK") {
                 const location = results[0].geometry.location;
-                const marker = new google.maps.Marker({
+                // Create a simple marker icon 
+                const barberIcon = document.createElement("div");
+                barberIcon.innerHTML = `
+                <svg width="48" height="48" viewBox="0 0 24 24">
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" fill="#FF5722" stroke="#fff" stroke-width="2"/>
+                </svg>
+                `;
+
+                const marker = new google.maps.marker.AdvancedMarkerElement({
                     map: map,
                     position: location,
                     title: barberName || address,
+                    content: barberIcon,  // This shows the marker visually
                 });
 
                 const infoWindow = new google.maps.InfoWindow({
