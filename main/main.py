@@ -228,6 +228,9 @@ class BarberBot:
         #/login
         app.add_handler(login_conversation_handler)
         
+        # signup
+        app.add_handler(signup_handler)
+        
         #/calendar
         app.add_handler(calendar_handler)
         

@@ -9,6 +9,8 @@ from barber_side.handlers.menu_handlers import clear_menu
 from datetime import datetime as dt
 from datetime import timedelta
 
+import telegram
+
 def initialize_storage_client():
     # Initialize Firebase if not already done
     if not firebase_admin._apps:
@@ -53,25 +55,42 @@ async def display_start_image(update, context, blob_name):
     except Exception as e:
         await update.message.reply_text(f"⚠️ Error displaying image: {e}")
 
-# Telegram Bot Function to Display the Image
-async def display_barber_image(update, context, blob_name, caption, reply_markup = None):
-    try:
-        # Generate signed URL
-        signed_url = generate_signed_url(blob_name)
-        
-        if not signed_url:
-            await update.callback_query.message.reply_text("Failed to fetch image from storage.")
-            return
+async def display_barber_image(update, context, blob_name, caption, reply_markup=None):
+    # Get the message object safely
+    message = update.message or update.callback_query.message
+    if not message:
+        raise ValueError("No message object found in update")
 
-        message = update.message or update.callback_query.message
-        message = await message.reply_photo(photo=signed_url, caption = caption, reply_markup=reply_markup)
-        await clear_menu(update, context)
-        
-        menu_messages = context.user_data.get('menu_message', [])
-        menu_messages.append(message.message_id)
+    # Try primary image first
+    try:
+        signed_url = generate_signed_url("image.jpg") # replace with own blob when changing it back
     
     except Exception as e:
-        await update.message.reply_text(f"⚠️ Error displaying image: {e}")
+        # If primary fails, try fallback image
+        print(f"Primary image {blob_name} not found, trying fallback")
+        signed_url = generate_signed_url("image.jpg")
+
+    try:
+        # Attempt to send the photo
+        sent_message = await message.reply_photo(
+            photo=signed_url,
+            caption=caption,
+            reply_markup=reply_markup
+        )
+        
+        # Clear previous menu and track new message
+        await clear_menu(update, context)
+        menu_messages = context.user_data.get('menu_message', [])
+        menu_messages.append(sent_message.message_id)
+        context.user_data['menu_message'] = menu_messages
+        
+    except telegram.error.BadRequest as e:
+        if "Failed to get http url content" in str(e):
+            print(f"URL access failed: {signed_url}")
+            await message.reply_text("⚠️ The image couldn't be loaded. Please try again later.")
+        else:
+            raise
+
 
 ### CLEANING open slots (expired)
 import datetime

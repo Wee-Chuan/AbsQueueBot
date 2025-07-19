@@ -39,8 +39,11 @@ async def profile_details(update: Update, context: CallbackContext) -> int:
             [InlineKeyboardButton("⬅️ Back", callback_data="backs")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
+        uid = context.user_data.get("current_user").uuid
+
+        image_name = uid + ".png"
         
-        await display_barber_image(update, context, "luqmanarifin49@gmail.png", caption, reply_markup)
+        await display_barber_image(update, context, image_name, caption, reply_markup)
         return BACK
 
     except Exception as e:

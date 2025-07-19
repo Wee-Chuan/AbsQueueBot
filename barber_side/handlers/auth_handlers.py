@@ -17,7 +17,7 @@ import requests
 from barber_side.handlers.menu_handlers import menu
 from barber_side.utils.globals import *
 from barber_side.classes.classes import *
-
+from firebase_admin import auth
 
 # quick login for devs (luqqycutz account)
 async def login_dev(update: Update, context: CallbackContext) -> None:
@@ -35,7 +35,10 @@ async def login_dev(update: Update, context: CallbackContext) -> None:
         query = collection_ref.where("email", "==", email)
         result = query.stream()
         result_list = list(result)
-
+        
+        user = auth.get_user_by_email(email)
+        uid = user.uid
+        
         # Save barber object to context.user_data
         barber_doc = result_list[0].to_dict()
         current_barber = Barber(
@@ -47,6 +50,7 @@ async def login_dev(update: Update, context: CallbackContext) -> None:
             region=barber_doc.get('region'),
             portfolio = barber_doc.get('portfolio_link'),
             doc_id=result_list[0].id,
+            uuid=uid
         )
         context.user_data['current_user'] = current_barber
         context.user_data['logged_in'] = True
@@ -169,6 +173,9 @@ async def get_login_details(update: Update, context: CallbackContext) -> int:
             await update.message.reply_text("There was a problem logging in to your account.\nPlease contact customer service for more details!")
             return ConversationHandler.END
         
+        
+        user = auth.get_user_by_email(email)
+        uid = user.uid
         # Save barber object to context.user_data
         barber_doc = result_list[0].to_dict()
         current_barber = Barber(
@@ -180,6 +187,7 @@ async def get_login_details(update: Update, context: CallbackContext) -> int:
             region=barber_doc.get('region'),
             portfolio=barber_doc.get('portfolio_link'),
             doc_id=result_list[0].id,
+            uuid=uid
         )
         context.user_data['current_user'] = current_barber
         context.user_data['logged_in'] = True
@@ -237,49 +245,91 @@ login_conversation_handler = ConversationHandler(
 
 
 # ---- Sign Up Conversation Handler ---- #
-async def get_email_su(update:Update, context:CallbackContext) -> int :
-    # entry
-    pass
+# States
+EMAIL_SU, PASSWORD_SU, NAME_SU, ADDRESS_SU, POSTCODE_SU, REGION_SU = range(6)
 
-async def get_password_su(update:Update, context:CallbackContext) -> int :
-    # save email temporarily in context
-    pass
+### Step 1: Ask for email ###
+async def get_email_su(update: Update, context: CallbackContext) -> int:
+    await update.callback_query.message.reply_text("Please enter your email address:")
+    return EMAIL_SU
 
-async def get_name_su(update:Update, context:CallbackContext) -> int :
-    # save name temporarily in context
-    pass
+### Step 2: Save email and ask for password ###
+async def get_password_su(update: Update, context: CallbackContext) -> int:
+    context.user_data["email"] = update.message.text.strip()
+    await update.message.reply_text("Please enter your password:")
+    return PASSWORD_SU
 
-async def get_address_su(update:Update, context:CallbackContext) -> int :
-    # save address temporarily in context
-    pass
+### Step 3: Save password and ask for name ###
+async def get_name_su(update: Update, context: CallbackContext) -> int:
+    context.user_data["password"] = update.message.text.strip()  # WARNING: Never store plaintext passwords in production
+    await update.message.reply_text("Please enter your full name:")
+    return NAME_SU
 
-async def get_postcode_su(update:Update, context:CallbackContext) -> int :
-    # save postcode temporarily in context
-    # run google maps API to determine region (?)
-    # create barber object 
-    #   class is of structure: (self, name, email, address, postal, region, doc_id, desc_id=None, portfolio=None, services=None, notify = False)
-    
-    pass
+### Step 4: Save name and ask for address ###
+async def get_address_su(update: Update, context: CallbackContext) -> int:
+    context.user_data["name"] = update.message.text.strip()
+    await update.message.reply_text("Please enter your address:")
+    return ADDRESS_SU
 
-async def cancel_sign_up(update:Update, context:CallbackContext) -> int :
+### Step 5: Save address and ask for postcode ###
+async def get_postcode_su(update: Update, context: CallbackContext) -> int:
+    context.user_data["address"] = update.message.text.strip()
+    await update.message.reply_text("Please enter your postal code:")
+    return POSTCODE_SU
+
+### Step 6: Save postcode and ask for region ###
+async def get_region_su(update: Update, context: CallbackContext) -> int:
+    context.user_data["postal"] = update.message.text.strip()
+    await update.message.reply_text("Please enter your region:")
+    return REGION_SU
+
+### Final Step: Save region, create Barber, and push to DB ###
+async def create_barber_and_save(update: Update, context: CallbackContext) -> int:
+    context.user_data["region"] = update.message.text.strip()
+
+    # Create Barber object without doc_id (it will be set by add_to_db_with_auth)
+    barber = Barber(
+        name=context.user_data["name"],
+        email=context.user_data["email"],
+        address=context.user_data["address"],
+        postal=context.user_data["postal"],
+        region=context.user_data["region"],
+        doc_id=None
+    )
+
+    db = firestore.client()
+    password = context.user_data.get("password")
+
+    if not password:
+        await update.message.reply_text("❌ Password not found. Please restart the signup.")
+        return ConversationHandler.END
+
+    success = barber.add_to_db_with_auth(db, password)
+
+    if success:
+        await update.message.reply_text("✅ You have been successfully registered!")
+    else:
+        await update.message.reply_text("❌ Something went wrong during registration.")
+
     return ConversationHandler.END
 
-EMAIL_SU,PASSWORD_SU,NAME_SU,ADDRESS_SU,POSTCODE_SU  = range(5)
+
+### Cancel handler ###
+async def cancel_sign_up(update: Update, context: CallbackContext) -> int:
+    await update.message.reply_text("Sign-up process cancelled.")
+    return ConversationHandler.END
 
 signup_handler = ConversationHandler(
-    entry_points=[CommandHandler("start", get_email_su)],
+    entry_points=[CallbackQueryHandler(get_email_su, pattern='signup')],
     states={
-        EMAIL_SU: [MessageHandler(filters.TEXT  & ~filters.COMMAND, get_password)],
-        PASSWORD_SU: [MessageHandler(filters.TEXT  & ~filters.COMMAND, get_login_details)],
-        NAME_SU: [MessageHandler(filters.TEXT  & ~filters.COMMAND, get_login_details)],
-        ADDRESS_SU: [MessageHandler(filters.TEXT  & ~filters.COMMAND, get_login_details)],
-        POSTCODE_SU: [MessageHandler(filters.TEXT  & ~filters.COMMAND, get_login_details)],
+        EMAIL_SU: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_password_su)],
+        PASSWORD_SU: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_name_su)],
+        NAME_SU: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_address_su)],
+        ADDRESS_SU: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_postcode_su)],
+        POSTCODE_SU: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_region_su)],
+        REGION_SU: [MessageHandler(filters.TEXT & ~filters.COMMAND, create_barber_and_save)],
     },
-    fallbacks=[
-        CallbackQueryHandler(cancel_sign_up, pattern="cancel_sign_up"),
-    ],
+    fallbacks=[CommandHandler("cancel", cancel_sign_up)],
     per_user=True,
     allow_reentry=True
 )
-
-

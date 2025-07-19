@@ -5,7 +5,7 @@ from barber_side.utils.globals import *
 import asyncio
 
 class Barber:
-    def __init__(self, name, email, address, postal, region, doc_id, desc_id=None, portfolio=None, services=None, notify = False):
+    def __init__(self, name, email, address, postal, region, doc_id=None, desc_id=None, portfolio=None, services=None, notify = False, uuid = None):
         self.name = name
         self.email = email
         self.address = address
@@ -16,23 +16,69 @@ class Barber:
         self.services = services if services else []  # Default empty list if none provided.
         self.notify = notify
         self.portfolio = portfolio
+        self.uuid = uuid
 
     def push_to_db(self, db: firestore.Client):
-        """Push barber data to Firestore."""
+        """
+        Update the existing Firestore barber document.
+        """
+        if self.doc_id is None:
+            print("❌ Cannot update barber profile: doc_id is None.")
+            return False
+
         try:
-            barber_ref = db.collection('barbers').document(self.doc_id)
-            barber_ref.update({
+            barber_data = {
                 "name": self.name,
                 "email": self.email,
                 "address": self.address,
                 "postal": self.postal,
                 "region": self.region,
-                "services": self.services
-            })
+                "services": self.services,
+                "notify": self.notify,
+                "portfolio": self.portfolio,
+                "description_id": self.desc_id
+            }
+            barber_ref = db.collection('barbers').document(self.doc_id)
+            barber_ref.update(barber_data)
             print(f"✅ Updated barber '{self.name}' (ID: {self.doc_id}) successfully in Firestore.")
             return True
+
         except Exception as e:
             print(f"❌ Error updating Firestore: {e}")
+            return False
+
+    def add_to_db_with_auth(self, db: firestore.Client, password: str):
+        """
+        Create Firebase Authentication user with email/password,
+        then add the barber profile to Firestore using the Firebase UID as doc_id.
+        """
+        try:
+            # Create Firebase Auth user
+            user_record = auth.create_user(
+                email=self.email,
+                password=password
+            )
+            self.doc_id = user_record.uid  # Use Firebase UID as Firestore doc ID # importanttttt
+
+            barber_data = {
+                "name": self.name,
+                "email": self.email,
+                "address": self.address,
+                "postal": self.postal,
+                "region": self.region,
+                "services": self.services,
+                "notify": self.notify,
+                "portfolio": self.portfolio,
+                "description_id": self.desc_id
+            }
+
+            # Add document with the Firebase UID as the doc_id
+            db.collection('barbers').document(self.doc_id).set(barber_data)
+            print(f"✅ Created Firebase Auth user and Firestore profile for '{self.name}' (UID: {self.doc_id})")
+            return True
+
+        except Exception as e:
+            print(f"❌ Error adding barber with Firebase Auth: {e}")
             return False
 
     ### static methods ###
