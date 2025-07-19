@@ -7,8 +7,10 @@ from telegram.ext import (
     CommandHandler,
     MessageHandler,
     filters,
-    CallbackQueryHandler
+    CallbackQueryHandler,
 )
+
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 # Third-party imports
 import requests
@@ -277,15 +279,40 @@ async def get_postcode_su(update: Update, context: CallbackContext) -> int:
     await update.message.reply_text("Please enter your postal code:")
     return POSTCODE_SU
 
-### Step 6: Save postcode and ask for region ###
 async def get_region_su(update: Update, context: CallbackContext) -> int:
+    # Save postal code
     context.user_data["postal"] = update.message.text.strip()
-    await update.message.reply_text("Please enter your region:")
+    
+    # Create inline keyboard with 6 regions (2 buttons per row)
+    keyboard = [
+        [
+            InlineKeyboardButton("East", callback_data="east"),
+            InlineKeyboardButton("West", callback_data="west")
+        ],
+        [
+            InlineKeyboardButton("South", callback_data="south"),
+            InlineKeyboardButton("North", callback_data="north")
+        ],
+        [
+            InlineKeyboardButton("Central", callback_data="central"),
+            InlineKeyboardButton("North-East", callback_data="northeast")
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await update.message.reply_text(
+        "Please select your region:",
+        reply_markup=reply_markup
+    )
     return REGION_SU
 
 ### Final Step: Save region, create Barber, and push to DB ###
 async def create_barber_and_save(update: Update, context: CallbackContext) -> int:
-    context.user_data["region"] = update.message.text.strip()
+    query = update.callback_query
+    await query.answer()
+    
+    # Save selected region
+    context.user_data["region"] = query.data
 
     # Create Barber object without doc_id (it will be set by add_to_db_with_auth)
     barber = Barber(
@@ -300,16 +327,16 @@ async def create_barber_and_save(update: Update, context: CallbackContext) -> in
     db = firestore.client()
     password = context.user_data.get("password")
 
-    if not password:
-        await update.message.reply_text("❌ Password not found. Please restart the signup.")
-        return ConversationHandler.END
+    # if not password:
+    #     await update.message.reply_text("❌ Password not found. Please restart the signup.")
+    #     return ConversationHandler.END
 
     success = barber.add_to_db_with_auth(db, password)
 
     if success:
-        await update.message.reply_text("✅ You have been successfully registered!")
+        await update.callback_query.message.reply_text("✅ You have been successfully registered!")
     else:
-        await update.message.reply_text("❌ Something went wrong during registration.")
+        await update.callback_query.message.reply_text("❌ Something went wrong during registration.")
 
     return ConversationHandler.END
 
@@ -327,7 +354,7 @@ signup_handler = ConversationHandler(
         NAME_SU: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_address_su)],
         ADDRESS_SU: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_postcode_su)],
         POSTCODE_SU: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_region_su)],
-        REGION_SU: [MessageHandler(filters.TEXT & ~filters.COMMAND, create_barber_and_save)],
+        REGION_SU: [CallbackQueryHandler(create_barber_and_save, pattern=r"^(east|west|south|north|central|northeast)$")],
     },
     fallbacks=[CommandHandler("cancel", cancel_sign_up)],
     per_user=True,
