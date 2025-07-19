@@ -264,6 +264,7 @@ class Customer:
                 instagram = data.get('instagram')
                 facebook = data.get('facebook')
                 website = data.get('website')
+                portfolio = data.get('portfolio')
                 region = data.get('region', "No region available")
                 address = data.get('address', "No address available")
                 postal = data.get('postal code', "No postal code available")
@@ -282,6 +283,7 @@ class Customer:
                     'instagram': instagram,
                     'facebook': facebook,
                     'website': website,
+                    'portfolio': portfolio,
                     'region': region,
                     'address': address,
                     'postal': postal

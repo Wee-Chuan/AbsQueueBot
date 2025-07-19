@@ -646,8 +646,8 @@ async def learn_more(update: Update, context: CallbackContext) -> int:
         await query.answer(error_message)
         return SELECT_SERVICE
     
-    if barber_info["instagram"] == None and barber_info["facebook"] == None and barber_info["website"] == None:
-        await query.answer("🙁 No social media available for this barber.", show_alert=True)
+    if barber_info["instagram"] == None and barber_info["facebook"] == None and barber_info["website"] == None and barber_info["Portfolio"] == None:
+        await query.answer("🙁 No portfolio available for this barber.", show_alert=True)
         return SELECT_SERVICE
     
     # Get search type
