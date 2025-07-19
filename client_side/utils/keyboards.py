@@ -51,10 +51,12 @@ class Keyboards:
     def search_by_region():
         """Buttons for selecting a region."""
         return [
-            [InlineKeyboardButton("🌍 West", callback_data="region_west")],
-            [InlineKeyboardButton("🌍 East", callback_data="region_east")],
             [InlineKeyboardButton("🌍 North", callback_data="region_north")],
             [InlineKeyboardButton("🌍 South", callback_data="region_south")],
+            [InlineKeyboardButton("🌍 East", callback_data="region_east")],
+            [InlineKeyboardButton("🌍 West", callback_data="region_west")],
+            [InlineKeyboardButton("🌍 North East", callback_data="region_northeast")],
+            [InlineKeyboardButton("🌍 Central", callback_data="region_central")],
             [InlineKeyboardButton("◀", callback_data="back_to_search_option"), InlineKeyboardButton("🏠 Home", callback_data="back_to_menu")],
         ]
     
