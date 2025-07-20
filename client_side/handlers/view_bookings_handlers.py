@@ -542,7 +542,7 @@ async def view_my_booked_slots(update: Update, context: CallbackContext) -> int:
         date_bookings = []
         for booking_id, start_time, details in booked_slots:
             if start_time.date() == selected_date:
-                date_bookings.append((booking_id, start_time, details, 'booked'))
+                date_bookings.append((booking_id, start_time, details, 'booked', None, None))
         
         # Filter completed bookings for selected date
         for booking_id, start_time, details, rating, review in completed_bookings:
@@ -591,7 +591,7 @@ async def view_my_booked_slots(update: Update, context: CallbackContext) -> int:
                 elif status == 'no_show':
                     bookings_text += f"❌ {start_time.strftime('%I:%M %p')} (No Show)\n"
                     bookings_text += f"{details}\n\n"
-                else:
+                elif status == 'booked':
                     bookings_text += f"⏰ {start_time.strftime('%I:%M %p')}\n"
                     bookings_text += f"{details}\n\n"
                 
