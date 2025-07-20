@@ -240,7 +240,7 @@ class Booking:
                              f"💲 <b>Price:</b> ${service_price}\n\n" \
                              f"📅 <b>Date:</b> {start_time_sgt.strftime('%a %d/%m/%Y')}\n" \
                              f"🕛 <b>Time:</b> {start_time_sgt.strftime('%I:%M %p')} - {end_time_sgt.strftime('%I:%M %p')}\n\n" \
-                             f"Thank you, {user_name}! You can view your bookings back at /menu"
+                             f"Thank you, {user_name}! You can view your bookings back at /client_menu"
             else:
                 return False, "Failed to book the slot. Please try again later."
 
@@ -336,7 +336,7 @@ class Booking:
             })
 
             print(f"Booking {booking_id} canceled successfully.")
-            return True, "Your booking has been successfully canceled. Press /menu to go back to menu."
+            return True, "Your booking has been successfully canceled. Press /client_menu to go back to menu."
 
         except Exception as e:
             print(f"Error canceling booking: {e}")
