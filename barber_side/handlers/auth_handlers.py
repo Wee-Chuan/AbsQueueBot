@@ -14,6 +14,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 # Third-party imports
 import requests
+import re
 
 # Local imports
 from barber_side.handlers.menu_handlers import menu
@@ -222,13 +223,11 @@ async def get_login_details(update: Update, context: CallbackContext) -> int:
     return ConversationHandler.END
 
 async def resend_command(update: Update, context: CallbackContext) -> int:
-    print("hello")
     if update.message:
         context.application.create_task(context.application.process_update(update))
     return ConversationHandler.END
 
 async def back_to_main(update:Update, context:CallbackContext):
-    print("back tomain HAHAHAHHAHAHAHHAHAAHHA")
     await menu(update, context)
     return ConversationHandler.END
 
@@ -260,8 +259,13 @@ async def get_email_su(update: Update, context: CallbackContext) -> int:
 
 ### Step 2: Save email and ask for password ###
 async def get_password_su(update: Update, context: CallbackContext) -> int:
-    context.user_data["email"] = update.message.text.strip()
-    await update.message.reply_text("Please enter your password:")
+    email = update.message.text.strip()
+    if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+        await update.message.reply_text("❌ Invalid email format. Please enter a valid email:")
+        return EMAIL_SU
+
+    context.user_data["email"] = email
+    await update.message.reply_text("Please enter your password (min 6 characters):")
     return PASSWORD_SU
 
 ### Step 3: Save password and ask for name ###
@@ -272,19 +276,33 @@ async def get_name_su(update: Update, context: CallbackContext) -> int:
 
 ### Step 4: Save address and ask for postcode ###
 async def get_postcode_su(update: Update, context: CallbackContext) -> int:
-    context.user_data["address"] = update.message.text.strip()
+    context.user_data["name"] = update.message.text.strip()
     await update.message.reply_text("Please enter your postal code:")
     return POSTCODE_SU
 
 ### Step 5: Save name and ask for address ###
 async def get_address_su(update: Update, context: CallbackContext) -> int:
-    context.user_data["name"] = update.message.text.strip()
+    postal = update.message.text.strip()
+
+    # Check if it's 6 digits
+    if not re.match(r"^\d{6}$", postal):
+        await update.message.reply_text("❌ Postal code must be 6 digits. Try again:")
+        return POSTCODE_SU
+
+    # Check if first 2 digits represent a valid SG sector (01–82)
+    sector = int(postal[:2])
+    if not (1 <= sector <= 82):
+        await update.message.reply_text("❌ Invalid Singapore postal code. Please try again:")
+        return POSTCODE_SU
+
+    context.user_data["postal"] = postal
+    
     await update.message.reply_text("Please enter your address:")
     return ADDRESS_SU
 
 async def get_region_su(update: Update, context: CallbackContext) -> int:
-    # Save postal code
-    context.user_data["postal"] = update.message.text.strip()
+    # Save address
+    context.user_data["address"] = update.message.text.strip()
     
     # Create inline keyboard with 6 regions (2 buttons per row)
     keyboard = [
@@ -343,7 +361,6 @@ async def create_barber_and_save(update: Update, context: CallbackContext) -> in
 
     return ConversationHandler.END
 
-
 ### Cancel handler ###
 async def cancel_sign_up(update: Update, context: CallbackContext) -> int:
     await update.message.reply_text("Sign-up process cancelled.")
@@ -355,8 +372,8 @@ signup_handler = ConversationHandler(
         EMAIL_SU: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_password_su)],
         PASSWORD_SU: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_name_su)],
         NAME_SU: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_postcode_su)],
-        ADDRESS_SU: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_address_su)],
-        POSTCODE_SU: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_region_su)],
+        POSTCODE_SU: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_address_su)],
+        ADDRESS_SU: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_region_su)],
         REGION_SU: [CallbackQueryHandler(create_barber_and_save, pattern=r"^(east|west|south|north|central|northeast)$")],
     },
     fallbacks=[CommandHandler("cancel", cancel_sign_up)],
