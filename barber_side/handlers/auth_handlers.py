@@ -270,17 +270,17 @@ async def get_name_su(update: Update, context: CallbackContext) -> int:
     await update.message.reply_text("Please enter your full name:")
     return NAME_SU
 
-### Step 4: Save name and ask for address ###
-async def get_address_su(update: Update, context: CallbackContext) -> int:
-    context.user_data["name"] = update.message.text.strip()
-    await update.message.reply_text("Please enter your address:")
-    return ADDRESS_SU
-
-### Step 5: Save address and ask for postcode ###
+### Step 4: Save address and ask for postcode ###
 async def get_postcode_su(update: Update, context: CallbackContext) -> int:
     context.user_data["address"] = update.message.text.strip()
     await update.message.reply_text("Please enter your postal code:")
     return POSTCODE_SU
+
+### Step 5: Save name and ask for address ###
+async def get_address_su(update: Update, context: CallbackContext) -> int:
+    context.user_data["name"] = update.message.text.strip()
+    await update.message.reply_text("Please enter your address:")
+    return ADDRESS_SU
 
 async def get_region_su(update: Update, context: CallbackContext) -> int:
     # Save postal code
@@ -354,8 +354,8 @@ signup_handler = ConversationHandler(
     states={
         EMAIL_SU: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_password_su)],
         PASSWORD_SU: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_name_su)],
-        NAME_SU: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_address_su)],
-        ADDRESS_SU: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_postcode_su)],
+        NAME_SU: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_postcode_su)],
+        ADDRESS_SU: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_address_su)],
         POSTCODE_SU: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_region_su)],
         REGION_SU: [CallbackQueryHandler(create_barber_and_save, pattern=r"^(east|west|south|north|central|northeast)$")],
     },
