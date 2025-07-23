@@ -7,7 +7,9 @@ from barber_side.utils.globals import *
 RECEIVE = range(1)
 
 async def link_portfolio(update: Update, context: CallbackContext) -> None:
-    message = await update.callback_query.message.edit_text("Enter a link to your portfolio:")
+    keyboard = [InlineKeyboardButton("Cancel", callback_data="cancel")]
+    reply_markup = InlineKeyboardMarkup([keyboard])
+    message = await update.callback_query.message.edit_text("Enter a link to your portfolio:", reply_markup = reply_markup)
     return RECEIVE
     
 async def receive_link(update: Update, context: CallbackContext) -> None:
@@ -46,6 +48,10 @@ async def receive_link(update: Update, context: CallbackContext) -> None:
         await update.message.reply_text(f"⚠️ Failed to save portfolio link: {e}")
 
 
+async def back_to_home(update:Update, context:CallbackContext) -> None:
+    await menu(update, context)
+    return ConversationHandler.END
+
 portfolio_conv_handler = ConversationHandler(
     entry_points=[CallbackQueryHandler(link_portfolio, pattern = r"^link_portfolio$")],
     states={
@@ -54,7 +60,7 @@ portfolio_conv_handler = ConversationHandler(
         ]
     },
     fallbacks=[
-        # CallbackQueryHandler(back_to_main, pattern=r"^back_to_main$"),
+        CallbackQueryHandler(back_to_home, pattern=r"^cancel$"),
         # CommandHandler("menu", back_to_main)
         ],
     per_user=True,
