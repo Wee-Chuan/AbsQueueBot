@@ -265,7 +265,7 @@ async def get_password_su(update: Update, context: CallbackContext) -> int:
         return EMAIL_SU
 
     context.user_data["email"] = email
-    await update.message.reply_text("Please enter your password (min 6 characters):")
+    await update.message.reply_text("Please enter your password:")
     return PASSWORD_SU
 
 ### Step 3: Save password and ask for name ###
@@ -301,9 +301,13 @@ async def get_address_su(update: Update, context: CallbackContext) -> int:
     return ADDRESS_SU
 
 async def get_region_su(update: Update, context: CallbackContext) -> int:
-    # Save address
-    context.user_data["address"] = update.message.text.strip()
-    
+    raw_address = update.message.text.strip()
+
+    # Remove trailing 6-digit postal code if present (with or without comma/space)
+    cleaned_address = re.sub(r"[\s,]*\d{6}$", "", raw_address).strip()
+
+    context.user_data["address"] = cleaned_address
+
     # Create inline keyboard with 6 regions (2 buttons per row)
     keyboard = [
         [
@@ -320,12 +324,13 @@ async def get_region_su(update: Update, context: CallbackContext) -> int:
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    
+
     await update.message.reply_text(
         "Please select your region:",
         reply_markup=reply_markup
     )
     return REGION_SU
+
 
 ### Final Step: Save region, create Barber, and push to DB ###
 async def create_barber_and_save(update: Update, context: CallbackContext) -> int:
