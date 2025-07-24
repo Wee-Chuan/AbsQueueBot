@@ -38,7 +38,7 @@ async def menu(update: Update, context: CallbackContext) -> None:
         [InlineKeyboardButton("💈 Profile Details", callback_data="profile_details"), 
          InlineKeyboardButton("🔗 Portfolio", callback_data="link_portfolio")],
         [InlineKeyboardButton("🗓️ Calendar", callback_data="calendar"),
-         InlineKeyboardButton("📅 Appt History", callback_data="appointments")],
+         InlineKeyboardButton("📅 Appointments", callback_data="appointments")],
         [InlineKeyboardButton("💇🏻 Your Services", callback_data="services_menu"), 
          InlineKeyboardButton("💬 Your Descriptions", callback_data="descriptions")],
         [InlineKeyboardButton("💲 Earnings", callback_data="earnings"),]
