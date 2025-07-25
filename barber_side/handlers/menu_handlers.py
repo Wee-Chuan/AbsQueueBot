@@ -41,7 +41,7 @@ async def menu(update: Update, context: CallbackContext) -> None:
          InlineKeyboardButton("📅 Appointments", callback_data="appointments")],
         [InlineKeyboardButton("💇🏻 Your Services", callback_data="services_menu"), 
          InlineKeyboardButton("💬 Your Descriptions", callback_data="descriptions")],
-        [InlineKeyboardButton("💲 Earnings", callback_data="earnings"),]
+        [InlineKeyboardButton("💲 Earnings", callback_data="earnings"),],
         [InlineKeyboardButton("👋🏻 Sign Out", callback_data="signout"),]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
