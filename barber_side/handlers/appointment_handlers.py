@@ -291,9 +291,8 @@ async def handle_completed_appointments(update: Update, context: CallbackContext
         msg = await query.message.edit_text("✅ *Completed Appointments:*", parse_mode='Markdown', reply_markup=InlineKeyboardMarkup(keyboard))
         context.user_data['completed_appointments'] = docs
     else:
-        keyboard = [[InlineKeyboardButton("🔙", callback_data="back_to_appt_menu")]]
         reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("🔙", callback_data="back_to_appt_menu")]])
-        msg = await query.message.edit_text("❌ No completed appointments.", reply_markup=reply_markup, parse_mode='Markdown', reply_markup=InlineKeyboardMarkup(keyboard))
+        msg = await query.message.edit_text("❌ No completed appointments.", reply_markup=reply_markup, parse_mode='Markdown')
     return APPOINTMENTS_MENU
 
 async def handle_no_show_appointments(update: Update, context: CallbackContext):
