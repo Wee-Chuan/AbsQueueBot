@@ -163,15 +163,12 @@ async def get_login_details(update: Update, context: CallbackContext) -> int:
         
         result = query.stream()
         print(result)
-        print("1")
         result_list = []
         for doc in result:
             print(doc)
             result_list.append(doc)
             if len(result_list) > 1:  # Safety check
                 break
-        print("2")
-        
         
         # Check if barber exists (maybe suspended or something?)
         if not result_list:
@@ -222,10 +219,23 @@ async def get_login_details(update: Update, context: CallbackContext) -> int:
 
     return ConversationHandler.END
 
-async def resend_command(update: Update, context: CallbackContext) -> int:
+# sign out:
+async def sign_out(update: Update, context: CallbackContext) -> None:
+    print("Signing out user...")
+
+    user_id = update.effective_user.id
+    
+    # Clear user session data
+    context.user_data.clear()  # Remove everything stored in user_data
+    
+    # Optionally remove from global session dict
+    user_sessions.pop(user_id, None)
+
+    # Notify the user
     if update.message:
-        context.application.create_task(context.application.process_update(update))
-    return ConversationHandler.END
+        await update.message.reply_text("🚪 You have been signed out.")
+    elif update.callback_query:
+        await update.callback_query.message.reply_text("🚪 You have been signed out.")
 
 async def back_to_main(update:Update, context:CallbackContext):
     await menu(update, context)

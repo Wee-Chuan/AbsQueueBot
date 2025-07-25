@@ -45,7 +45,7 @@ class BarberBot:
         self.user_roles = {}  # Dictionary to store user roles
         # self.notification_listener = None  # Placeholder for notification listener
 
-    async def start(self, update: Update, context: CallbackContext):
+    async def start(self, update: Update, context: CallbackContext): #### /start 
         """Initial start command - ask user to select a role."""
         user_id = update.effective_user.id
 
@@ -188,7 +188,7 @@ class BarberBot:
         """Create and configure bot application."""
         app = Application.builder().token(self.token).build()
 
-        # Create conversation handler for role selection
+        # Create conversation handler for role selection    
         role_selection_handler = ConversationHandler(
             entry_points=[CommandHandler("start", self.start)],
             states={
@@ -263,6 +263,9 @@ class BarberBot:
         # Handle unknown messages
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_unknown_messages))
     
+        # sign out
+        CallbackQueryHandler(sign_out, pattern='signout'),  # Trigger for button press
+        
         return app
     
 def main():
