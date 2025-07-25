@@ -136,8 +136,8 @@ class Keyboards:
                 keyboard.append([InlineKeyboardButton("📘 Facebook", url=f"https://www.facebook.com/{barber_info['facebook']}/")])
             if barber_info.get('website'):
                 keyboard.append([InlineKeyboardButton("🌐 Website", url=f"{barber_info['website']}")])
-            if barber_info.get('portfolio'):
-                keyboard.append([InlineKeyboardButton("📂 Portfolio", url=f"{barber_info['portfolio']}")])
+            if barber_info.get('portfolio_link'):
+                keyboard.append([InlineKeyboardButton("📂 Portfolio", url=f"{barber_info['portfolio_link']}")])
             
         if search_type == "name":
             keyboard.append([InlineKeyboardButton("◀", callback_data=f"back_to_search_info"), InlineKeyboardButton("🏠 Home", callback_data="back_to_menu")])
