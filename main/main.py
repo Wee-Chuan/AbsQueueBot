@@ -264,7 +264,7 @@ class BarberBot:
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_unknown_messages))
     
         # sign out
-        CallbackQueryHandler(sign_out, pattern='signout'),  # Trigger for button press
+        app.add_handler(CallbackQueryHandler(sign_out, pattern='signout')),  # Trigger for button press
         
         return app
     
