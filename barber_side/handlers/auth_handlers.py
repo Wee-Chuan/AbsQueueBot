@@ -17,7 +17,7 @@ import requests
 import re
 
 # Local imports
-from barber_side.handlers.menu_handlers import menu
+from barber_side.handlers.menu_handlers import clear_menu, menu
 from barber_side.utils.globals import *
 from barber_side.classes.classes import *
 from firebase_admin import auth
@@ -222,6 +222,7 @@ async def get_login_details(update: Update, context: CallbackContext) -> int:
 # sign out:
 async def sign_out(update: Update, context: CallbackContext) -> None:
     print("Signing out user...")
+    await clear_menu(update, context) # clear previous menus
 
     user_id = update.effective_user.id
     
