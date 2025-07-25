@@ -646,7 +646,7 @@ async def learn_more(update: Update, context: CallbackContext) -> int:
         await query.answer(error_message)
         return SELECT_SERVICE
     
-    if barber_info["instagram"] == None and barber_info["facebook"] == None and barber_info["website"] == None and barber_info["Portfolio"] == None:
+    if barber_info["instagram"] == None and barber_info["facebook"] == None and barber_info["website"] == None and barber_info["portfolio_link"] == None:
         await query.answer("🙁 No portfolio available for this barber.", show_alert=True)
         return SELECT_SERVICE
     
@@ -654,6 +654,7 @@ async def learn_more(update: Update, context: CallbackContext) -> int:
     search_type = HelperUtils.get_user_data(context, "search_type")
 
     # Use the Messages class to generate the "Learn more" message
+    print(f"Barber info: {barber_info}")
     message = Messages.learn_more_message(barber_info)
 
     # Use the Keyboards class 

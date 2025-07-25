@@ -283,7 +283,7 @@ class Customer:
                     'instagram': instagram,
                     'facebook': facebook,
                     'website': website,
-                    'portfolio': portfolio,
+                    'portfolio_link': portfolio,
                     'region': region,
                     'address': address,
                     'postal': postal

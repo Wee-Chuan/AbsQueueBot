@@ -129,15 +129,20 @@ class Keyboards:
         """Buttons for learning more section."""
         keyboard = []
 
+        def is_valid_url(url):
+            return url and url.startswith(("http://", "https://"))
+
         if barber_info:
             if barber_info.get('instagram'): 
                 keyboard.append([InlineKeyboardButton("📷 Instagram", url=f"https://www.instagram.com/{barber_info['instagram']}/")])
             if barber_info.get('facebook'):
                 keyboard.append([InlineKeyboardButton("📘 Facebook", url=f"https://www.facebook.com/{barber_info['facebook']}/")])
-            if barber_info.get('website'):
+            if barber_info.get('website') and is_valid_url(barber_info['website']):
                 keyboard.append([InlineKeyboardButton("🌐 Website", url=f"{barber_info['website']}")])
-            if barber_info.get('portfolio_link'):
+            if barber_info.get('portfolio_link') and is_valid_url(barber_info['portfolio_link']):
+                print(f"Portfolio link: {barber_info['portfolio_link']}")
                 keyboard.append([InlineKeyboardButton("📂 Portfolio", url=f"{barber_info['portfolio_link']}")])
+                
             
         if search_type == "name":
             keyboard.append([InlineKeyboardButton("◀", callback_data=f"back_to_search_info"), InlineKeyboardButton("🏠 Home", callback_data="back_to_menu")])
