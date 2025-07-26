@@ -130,7 +130,13 @@ class Keyboards:
         keyboard = []
 
         def is_valid_url(url):
-            return url and url.startswith(("http://", "https://"))
+            # Check for http/https and common domain endings
+            valid_domains = (".com", ".net", ".org", ".sg", ".co", ".io", ".edu", ".gov")
+            return (
+                isinstance(url, str)
+                and url.startswith(("http://", "https://"))
+                and any(url.endswith(domain) for domain in valid_domains)
+            )
 
         if barber_info:
             if barber_info.get('instagram'): 
