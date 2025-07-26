@@ -654,7 +654,6 @@ async def learn_more(update: Update, context: CallbackContext) -> int:
     search_type = HelperUtils.get_user_data(context, "search_type")
 
     # Use the Messages class to generate the "Learn more" message
-    print(f"Barber info: {barber_info}")
     message = Messages.learn_more_message(barber_info)
 
     # Use the Keyboards class 

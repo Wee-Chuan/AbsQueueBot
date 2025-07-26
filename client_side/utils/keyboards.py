@@ -134,9 +134,13 @@ class Keyboards:
             valid_domains = (".com", ".net", ".org", ".sg", ".co", ".io", ".edu", ".gov")
             return (
                 isinstance(url, str)
-                and url.startswith(("http://", "https://"))
                 and any(url.endswith(domain) for domain in valid_domains)
             )
+
+        def format_url(url):
+            if not url.startswith(("http://", "https://")):
+                return f"https://{url}"
+            return url
 
         if barber_info:
             if barber_info.get('instagram'): 
@@ -144,10 +148,9 @@ class Keyboards:
             if barber_info.get('facebook'):
                 keyboard.append([InlineKeyboardButton("📘 Facebook", url=f"https://www.facebook.com/{barber_info['facebook']}/")])
             if barber_info.get('website') and is_valid_url(barber_info['website']):
-                keyboard.append([InlineKeyboardButton("🌐 Website", url=f"{barber_info['website']}")])
+                keyboard.append([InlineKeyboardButton("🌐 Website", url=format_url(barber_info['website']))])
             if barber_info.get('portfolio_link') and is_valid_url(barber_info['portfolio_link']):
-                print(f"Portfolio link: {barber_info['portfolio_link']}")
-                keyboard.append([InlineKeyboardButton("📂 Portfolio", url=f"{barber_info['portfolio_link']}")])
+                keyboard.append([InlineKeyboardButton("📂 Portfolio", url=format_url(barber_info['portfolio_link']))])
                 
             
         if search_type == "name":
