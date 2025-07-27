@@ -101,6 +101,7 @@ class Keyboards:
         return [
             [InlineKeyboardButton("📋 View Services", callback_data=f"select_services_{doc_id}")],
             [InlineKeyboardButton("ℹ️ Learn more", callback_data=f"learn_more_{doc_id}")],
+            [InlineKeyboardButton("💬 Ratings & Reviews", callback_data=f"view_ratings_reviews_{doc_id}")],
             [InlineKeyboardButton(follow_button_text, callback_data=follow_button_callback)],
             [InlineKeyboardButton("◀", callback_data="back_to_barbers"), InlineKeyboardButton("🏠 Home", callback_data="back_to_menu")],
         ]

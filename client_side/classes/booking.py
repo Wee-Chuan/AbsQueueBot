@@ -521,6 +521,27 @@ class Booking:
                 "rating": rating
             })
             print(f"Rating {rating} saved successfully for booking {booking_id}.")
+
+            # Fetch barber name for this booking
+            booking_doc = db.collection("booked slots").document(booking_id).get()
+            barber_name = None
+            if booking_doc.exists:
+                barber_name = booking_doc.to_dict().get("barber_name")
+
+            # Get the barber's document ID using the barber name
+            barber_query = db.collection("barbers").where("name", "==", barber_name).limit(1).get()
+            if not barber_query:
+                return False, f"Barber '{barber_name}' not found."
+
+            barber_id = barber_query[0].id
+            
+            # Save rating in ratings and reviews collection
+            db.collection("barbers").document(barber_id).collection("ratings and reviews").document(booking_id).set({
+                "booking_id": booking_id,
+                "rating": rating,
+                "timestamp": datetime.now(timezone)
+            }, merge=True)
+
             return True, "Thank you for your rating ⭐!"
         except Exception as e:
             print(f"Error saving rating: {e}")
@@ -535,6 +556,27 @@ class Booking:
                 "review": review
             })
             print(f"Review saved successfully for booking {booking_id}.")
+
+            # Fetch barber name for this booking
+            booking_doc = db.collection("booked slots").document(booking_id).get()
+            barber_name = None
+            if booking_doc.exists:
+                barber_name = booking_doc.to_dict().get("barber_name", "Unknown Barber")
+
+            # Get the barber's document ID using the barber name
+            barber_query = db.collection("barbers").where("name", "==", barber_name).limit(1).get()
+            if not barber_query:
+                return False, f"Barber '{barber_name}' not found."
+
+            barber_id = barber_query[0].id
+
+            # Save review in ratings and reviews collection
+            db.collection("barbers").document(barber_id).collection("ratings and reviews").document(booking_id).set({
+                "booking_id": booking_id,
+                "review": review,
+                "timestamp": datetime.now(timezone)
+            }, merge=True)
+
             return True, "Thank you for your review! Your feedback is valuable to us."
         except Exception as e:
             print(f"Error saving review: {e}")

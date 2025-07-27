@@ -26,8 +26,8 @@ from datetime import datetime
 # ==================== CONSTANTS ====================
 # State constants
 SEARCH_OPTION, SEARCH_BARBER, REQUEST_LOCATION, SELECT_BARBER, BARBER_DETAILS = range(5)
-LEARN_MORE, SELECT_SERVICE, SELECT_SLOT, REQUEST_CONTACT = range(5, 9)
-CONFIRM_CONTACT, CONFIRM_BOOKING = range(9, 11)
+LEARN_MORE, VIEW_RATINGS_REVIEWS, SELECT_SERVICE, SELECT_SLOT, REQUEST_CONTACT = range(5, 10)
+CONFIRM_CONTACT, CONFIRM_BOOKING = range(10, 12)
 
 # Pagination constants
 BARBER_PER_PAGE = 5
@@ -669,6 +669,109 @@ async def learn_more(update: Update, context: CallbackContext) -> int:
 
     return LEARN_MORE
 
+# ==================== RATINGS AND REVIEWS ====================
+@HelperUtils.check_conversation_active
+async def view_ratings_reviews(update: Update, context: CallbackContext) -> int:
+    """View ratings and reviews for the barber."""
+    query = update.callback_query
+    await query.answer()
+
+    barber_info = HelperUtils.get_user_data(context, "barber_info")
+    if not barber_info:
+        error_message = Messages.error_message("barber_not_found")
+        await query.edit_message_text(error_message)
+        return SELECT_SERVICE
+
+    barber_name = barber_info["name"]
+
+    # Find the correct barber document ID
+    barber_doc_id = context.user_data.get("barber_doc_id")
+    if not barber_doc_id:
+        error_message = Messages.error_message("barber_not_found")
+        await query.edit_message_text(error_message)
+        return SELECT_SERVICE
+    
+    # Fetch reviews
+    reviews_ref = db.collection("barbers").document(barber_doc_id).collection("ratings and reviews")
+    reviews = list(reviews_ref.order_by("timestamp", direction=firestore.Query.DESCENDING).limit(10).stream())
+
+    if not reviews:
+        await query.edit_message_text(f"🙁 No ratings or reviews found for {barber_name}.")
+        return SELECT_SERVICE
+
+    # Store reviews in user_data
+    context.user_data["reviews_list"] = [r.to_dict() for r in reviews]
+    context.user_data["current_review_index"] = 0
+
+    return await paginate_ratings_reviews(update, context)
+
+@HelperUtils.check_conversation_active
+async def paginate_ratings_reviews(update: Update, context: CallbackContext) -> int:
+    """ Show one review and rating at a time """
+    query = update.callback_query
+    await query.answer()
+
+    reviews_list = context.user_data.get("reviews_list", [])
+    current_index = context.user_data.get("current_review_index", 0)
+    total = len(reviews_list)
+
+    if not reviews_list:
+        await query.edit_message_text("🙁 No ratings or reviews found.")
+        return SELECT_SERVICE
+
+    # Get the current review
+    review_data = reviews_list[current_index]
+    rating = review_data.get("rating", "No rating")
+    review_text = review_data.get("review", "No review text")
+    timestamp = review_data.get("timestamp")
+    date_str = timestamp.strftime("%d %b %Y") if timestamp else "Unknown date"
+
+    barber_info = HelperUtils.get_user_data(context, "barber_info")
+    barber_name = barber_info["name"]
+
+    text = (
+        f"💬 <b>Review {current_index+1} of {total}</b>\n"
+        f"\n⭐ <b>{rating}/5</b>"
+        f"\n📝 {review_text}"
+        f"\n📅 {date_str}"
+        f"\n\n👤 <b>{barber_name}</b>"
+    )
+
+    # Pagination buttons
+    buttons = []
+    if current_index > 0:
+        buttons.append(InlineKeyboardButton("◀️ Back", callback_data="review_prev"))
+    if current_index < total - 1:
+        buttons.append(InlineKeyboardButton("Next ▶️", callback_data="review_next"))
+    
+    # Back to Info/Home buttons
+    search_type = HelperUtils.get_user_data(context, "search_type")
+    if search_type == "name":
+        nav_buttons = [InlineKeyboardButton("◀", callback_data="back_to_search_info")]
+    elif search_type == "location":
+        nav_buttons = [InlineKeyboardButton("◀", callback_data="back_to_info")]
+    else:
+        nav_buttons = [InlineKeyboardButton("◀", callback_data="back_to_info")]
+    nav_buttons.append(InlineKeyboardButton("🏠 Home", callback_data="back_to_menu"))
+
+    keyboard = [buttons] if buttons else []
+    keyboard.append(nav_buttons)
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await query.edit_message_text(text=text, parse_mode="HTML", reply_markup=reply_markup)
+    HelperUtils.store_message_id(context, query.message.message_id)
+
+    return VIEW_RATINGS_REVIEWS
+
+async def review_next(update: Update, context: CallbackContext) -> int:
+    context.user_data["current_review_index"] += 1
+    return await paginate_ratings_reviews(update, context)
+
+async def review_prev(update: Update, context: CallbackContext) -> int:
+    context.user_data["current_review_index"] -= 1
+    return await paginate_ratings_reviews(update, context)
+
+# ==================== SLOT SELECTION ====================
 @HelperUtils.check_conversation_active
 async def select_slot(update: Update, context: CallbackContext, page: int=0) -> int:
     """Function to select slot after choosing a service."""
@@ -1112,6 +1215,7 @@ book_slots_handler = ConversationHandler(
         SELECT_SERVICE: [
             CallbackQueryHandler(select_service, pattern="^select_services_"),
             CallbackQueryHandler(learn_more, pattern="^learn_more_"),
+            CallbackQueryHandler(view_ratings_reviews, pattern="^view_ratings_reviews_"),
             CallbackQueryHandler(view_barber_details, pattern="^follow_"),
             CallbackQueryHandler(view_barber_details, pattern="^unfollow_"),
             CallbackQueryHandler(search_barber, pattern="^search_follow_"),
@@ -1124,6 +1228,13 @@ book_slots_handler = ConversationHandler(
             CallbackQueryHandler(search_barber, pattern="^back_to_search_info$"),
             CallbackQueryHandler(view_barber_details, pattern="back_to_info"),
             CallbackQueryHandler(client_menu, pattern="^back_to_menu$"),
+        ],
+        VIEW_RATINGS_REVIEWS: [
+            CallbackQueryHandler(view_barber_details, pattern="^back_to_info"),
+            CallbackQueryHandler(search_barber, pattern="^back_to_search_info$"),
+            CallbackQueryHandler(client_menu, pattern="^back_to_menu$"),
+            CallbackQueryHandler(review_next, pattern="^review_next$"),
+            CallbackQueryHandler(review_prev, pattern="^review_prev$"),
         ],
         SELECT_SLOT: [
             CallbackQueryHandler(select_slot, pattern="^service_"),
