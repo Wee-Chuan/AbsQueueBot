@@ -437,6 +437,7 @@ async def search_barber(update: Update, context: CallbackContext) -> int:
         keyboard = [
             [InlineKeyboardButton("📋 View Services", callback_data=f"select_services_{doc_id}")],
             [InlineKeyboardButton("ℹ️ Learn more", callback_data=f"learn_more_{doc_id}")],
+            [InlineKeyboardButton("💬 Ratings & Reviews", callback_data=f"view_ratings_reviews_{doc_id}")],
             [InlineKeyboardButton("⭐ Favorited" if is_following else "➕ Favorite this barber to get notified", 
                                 callback_data=f"search_unfollow_{doc_id}" if is_following else f"search_follow_{doc_id}")],
             [InlineKeyboardButton("◀", callback_data="back_to_search"), 
