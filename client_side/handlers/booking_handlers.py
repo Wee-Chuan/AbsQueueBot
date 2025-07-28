@@ -676,7 +676,6 @@ async def learn_more(update: Update, context: CallbackContext) -> int:
 async def view_ratings_reviews(update: Update, context: CallbackContext) -> int:
     """View ratings and reviews for the barber."""
     query = update.callback_query
-    await query.answer()
 
     barber_info = HelperUtils.get_user_data(context, "barber_info")
     if not barber_info:
@@ -698,7 +697,7 @@ async def view_ratings_reviews(update: Update, context: CallbackContext) -> int:
     reviews = list(reviews_ref.order_by("timestamp", direction=firestore.Query.DESCENDING).limit(10).stream())
 
     if not reviews:
-        await query.edit_message_text(f"🙁 No ratings or reviews found for {barber_name}.")
+        await query.answer("🙁 No ratings or reviews found.", show_alert=True)
         return SELECT_SERVICE
 
     # Store reviews in user_data
@@ -711,14 +710,13 @@ async def view_ratings_reviews(update: Update, context: CallbackContext) -> int:
 async def paginate_ratings_reviews(update: Update, context: CallbackContext) -> int:
     """ Show one review and rating at a time """
     query = update.callback_query
-    await query.answer()
 
     reviews_list = context.user_data.get("reviews_list", [])
     current_index = context.user_data.get("current_review_index", 0)
     total = len(reviews_list)
 
     if not reviews_list:
-        await query.edit_message_text("🙁 No ratings or reviews found.")
+        await query.answer("🙁 No ratings or reviews found.", show_alert=True)
         return SELECT_SERVICE
 
     # Get the current review
