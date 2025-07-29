@@ -149,7 +149,7 @@ class Service:
     # service_id is == its document id
     # barber_name is the barber it belongs to
     
-    def __init__(self, service_id, barber_name, name, price : float, description, barber_email):
+    def __init__(self, barber_name, name, price : float, description, barber_email, service_id=None):
         self.service_id = service_id
         self.barber_name = barber_name
         self.name = name
@@ -180,9 +180,8 @@ class Service:
         self.barber_name = name
     
     # Push to Firestore
-    def push_to_db(self, db : firestore.Client):
+    def push_to_db(self, db : firestore.Client):  # returns new service_id
         service_data = {
-            "service_id": self.service_id,
             "barber_id": self.barber_name,
             "name": self.name,
             "price": self.price,
@@ -191,31 +190,16 @@ class Service:
         }
 
         # Save to Firestore in the 'services' collection
-        db.collection("services").document(self.service_id).set(service_data)
-        print(f"Service '{self.name}' pushed to Firestore successfully!")
+        doc_ref = db.collection('services').add(service_data)
         
-    @staticmethod
-    def generate_service_id(barber_name: str, db: firestore.Client) -> str:
-        collection_ref = db.collection('services')  # Fix: use `collection`, not `collections`
-        query = collection_ref.where("barber_id", "==", barber_name).stream()
+        # add it to the barber's list of service IDs
+        service_id = doc_ref[1].id
+        
+        print(f"Service '{self.name}' pushed to Firestore successfully!")
+        return service_id
 
-        max_id = 0  # Default if no existing services
-
-        # Extract and find the highest service number
-        for doc in query:
-            doc_id = doc.id  # Document ID (e.g., "barber123-s5")
-            match = re.search(r"-s(\d+)$", doc_id)  # Extract number after "-s"
-            if match:
-                service_number = int(match.group(1))  # Convert to integer
-                max_id = max(max_id, service_number)  # Update max
-
-        # Generate new service ID
-        new_service_id = f"{barber_name}-s{max_id + 1}"
-        return new_service_id
-    
     def edit_service(self, db: firestore.Client, name=None, price=None, description=None):
         """Edit the service attributes and push the updated data to Firestore."""
-        
         # Update only if new values are provided
         if name is not None:
             self.set_name(name)
