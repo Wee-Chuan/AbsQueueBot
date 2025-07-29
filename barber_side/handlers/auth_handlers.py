@@ -234,9 +234,9 @@ async def sign_out(update: Update, context: CallbackContext) -> None:
 
     # Notify the user
     if update.message:
-        await update.message.reply_text("🚪 You have been signed out.")
+        await update.message.reply_text("🚪 You have been signed out. Tap /start to start again")
     elif update.callback_query:
-        await update.callback_query.message.reply_text("🚪 You have been signed out.")
+        await update.callback_query.message.reply_text("🚪 You have been signed out. Tap /start to start again")
 
 async def back_to_main(update:Update, context:CallbackContext):
     await menu(update, context)

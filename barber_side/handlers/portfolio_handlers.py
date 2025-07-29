@@ -21,7 +21,6 @@ async def receive_link(update: Update, context: CallbackContext) -> None:
     
     current_barber = context.user_data['current_user']
     user_email = current_barber.email
-    print(user_email)
 
     try:
         # Query Firestore for the barber with the given email
