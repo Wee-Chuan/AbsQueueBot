@@ -149,11 +149,18 @@ async def send_services_page(update: Update, context: CallbackContext, flag: boo
     sliced_services = services[start:end]
 
     # send guide message
-    message = await update.callback_query.message.reply_text(
+    try:
+        message = await update.callback_query.message.reply_text(
                 "💈 Your Services",
                 parse_mode='Markdown'
             )
-    context.user_data['messages_to_delete'].append(message.message_id)
+        context.user_data['messages_to_delete'].append(message.message_id)
+    except Exception as e:
+        message = await update.message.reply_text(
+                "💈 Your Services",
+                parse_mode='Markdown'
+            )
+        context.user_data['messages_to_delete'].append(message.message_id)
     # Prepare coroutines for sending individual service messages
     tasks = []
     for service in sliced_services:
@@ -232,15 +239,28 @@ async def handle_edit_service(update: Update, context: CallbackContext):
     query = update.callback_query
     await query.answer()
     
+    messages_to_delete = context.user_data['messages_to_delete']
+    await context.bot.delete_messages(chat_id=update.callback_query.message.chat_id, message_ids=messages_to_delete)
+    
     data = query.data  # e.g., "edit_barber123-s5"
     if data.startswith("edit_"):
         service_id = data[len("edit_"):]  # Extract service_id
         context.user_data["editing_service_id"] = service_id  # Store for later use
     print(f"user is editting {service_id}")
     
-    name = context.user_data.get("curr_service_name")
-    price = context.user_data.get("curr_service_price")
-    description = context.user_data.get("curr_service_description")
+    doc_ref = db.collection('services').document(service_id)
+    doc = doc_ref.get()
+    if doc.exists:
+        data = doc.to_dict()
+        print(data)
+
+    name = data['name']
+    price = data['price']
+    description = data['description']
+    
+    context.user_data['curr_service_name'] = name
+    context.user_data["curr_service_price"] = price
+    context.user_data["curr_service_description"] = description
     
     service_info = f"Name: {name}\nPrice: ${price}\nDescription: {description}"
     text = f"{service_info}\nWhich would you like to edit?"
@@ -250,7 +270,8 @@ async def handle_edit_service(update: Update, context: CallbackContext):
                      InlineKeyboardButton("Description", callback_data=f"description_{service_id}")])
     keyboard.append([InlineKeyboardButton("🔙 Back", callback_data = "back_to_edit_menu")])
     keyboard = InlineKeyboardMarkup(keyboard)
-    await update.callback_query.message.edit_text(text, reply_markup = keyboard)
+    msg = await update.callback_query.message.reply_text(text, reply_markup = keyboard)
+    messages_to_delete.append(msg.message_id)
     
     return EDIT_SELECT_FIELD    
 
@@ -298,6 +319,7 @@ async def handle_edit_field_selection(update: Update, context: CallbackContext) 
 async def receive_new_name(update: Update, context: CallbackContext) -> int:
     new_name = update.message.text.strip()
     context.user_data["new_service_name"] = new_name
+    print(new_name)
     return await apply_service_update(update, context)
 
 
@@ -324,6 +346,8 @@ async def apply_service_update(update: Update, context: CallbackContext) -> int:
     svc_id = context.user_data["editing_service_id"]
     field = context.user_data["editing_field"]
 
+    print(f"svd iddddddd is {svc_id}")
+    
     # Get the Firestore document to rebuild the object
     doc_ref = db.collection("services").document(svc_id)
     doc = doc_ref.get()
@@ -355,7 +379,7 @@ async def apply_service_update(update: Update, context: CallbackContext) -> int:
     service.edit_service(db, **kwargs)
 
     message = await update.message.reply_text(
-        f"✅ Service *{svc_id}* updated successfully ({field}).",
+        f"✅ Service updated successfully ({field}).",
         parse_mode="Markdown"
     )
 
