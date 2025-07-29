@@ -53,8 +53,11 @@ async def login_dev(update: Update, context: CallbackContext) -> None:
             region=barber_doc.get('region'),
             portfolio = barber_doc.get('portfolio_link'),
             doc_id=result_list[0].id,
+            services=barber_doc.get('services'),
             uuid=uid
         )
+        services=barber_doc.get('services')
+        print(services[0])
         context.user_data['current_user'] = current_barber
         context.user_data['logged_in'] = True
         print("\n✅ Barber object saved to context.user_data\n")
@@ -190,6 +193,7 @@ async def get_login_details(update: Update, context: CallbackContext) -> int:
             region=barber_doc.get('region'),
             portfolio=barber_doc.get('portfolio_link'),
             doc_id=result_list[0].id,
+            services=barber_doc.get('services'),
             uuid=uid
         )
         context.user_data['current_user'] = current_barber

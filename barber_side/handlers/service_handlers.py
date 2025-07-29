@@ -46,14 +46,14 @@ async def cleanup_service_menu(update: Update, context: CallbackContext):
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import CallbackContext, ConversationHandler
 
-SERVICES_PER_PAGE = 1
+SERVICES_PER_PAGE = 3
 SERVICES_VIEWING, NAME, PRICE, DESCRIPTION, EDIT_SELECT_FIELD, EDIT_NAME, EDIT_PRICE, EDIT_DESCRIPTION = range(8)
 
 async def services_menu(update: Update, context: CallbackContext) -> int:    
     service_menu_id = context.user_data.get('service_menu_id')  # fixed key name
     if service_menu_id:
         print(f"Found stored message ID: {service_menu_id}")
-        await cleanup_service_menu(update, context)
+        # await cleanup_service_menu(update, context)
     else:
         print("Service menu message not found in user_data.")
 
@@ -73,12 +73,18 @@ async def services_menu(update: Update, context: CallbackContext) -> int:
             parse_mode='Markdown' 
         )
     except Exception as e:
-        print(e)
-        message = await update.callback_query.message.reply_text(
-            "💈 *Services Menu*",
-            reply_markup=reply_markup,
-            parse_mode='Markdown'
-        )
+        try:
+            message = await update.message.reply_text(
+                "💈 *Services Menu*",
+                reply_markup=reply_markup,
+                parse_mode='Markdown'
+            )
+        except Exception as e:
+            message = await update.callback_query.message.reply_text(
+                "💈 *Services Menu*",
+                reply_markup=reply_markup,
+                parse_mode='Markdown'
+            )
 
     if message:
         context.user_data['service_menu_id'] = message.message_id  # make sure you're saving the ID!
@@ -86,24 +92,28 @@ async def services_menu(update: Update, context: CallbackContext) -> int:
 
 ## ----------------- view services -----------------
 async def view_services(update: Update, context: CallbackContext, flag = True) -> int:
-    
     messages = context.user_data.pop('messages_to_delete', None)
     if messages:
         try:
             await context.bot.delete_messages(chat_id=update.message.chat_id, message_ids=messages)
         except Exception as e:
             await context.bot.delete_messages(chat_id=update.callback_query.message.chat_id, message_ids=messages)
-    barber_email = context.user_data.get('current_user').email
-    collection_ref = db.collection('services')
-    query = collection_ref.where("email", "==", barber_email)
+    list_of_service_ids = context.user_data.get('current_user').services
 
-    docs = query.stream()
-    services = [doc.to_dict() for doc in docs]
+    services = []
+    for doc_id in list_of_service_ids:
+        doc_ref = db.collection('services').document(doc_id)
+        doc = doc_ref.get()
+        if doc.exists:
+            data = doc.to_dict()
+            data['service_id'] = doc.id
+            services.append(data)
 
     if not services:
         await update.callback_query.answer()
-        await update.callback_query.edit_message_text("💈 You have no services set up yet.")
-        return ConversationHandler.END
+        keyboard = [[InlineKeyboardButton("🔙 Back", callback_data = "back_to_services_menu")]]
+        await update.callback_query.edit_message_text("💈 You have no services set up yet.", reply_markup = InlineKeyboardMarkup(keyboard))
+        return SERVICES_VIEWING
 
     context.user_data['services_list'] = services
     context.user_data['services_page'] = 0
@@ -112,85 +122,96 @@ async def view_services(update: Update, context: CallbackContext, flag = True) -
 
     return SERVICES_VIEWING
 
-async def send_services_page(update: Update, context: CallbackContext, flag = True):
-    services = context.user_data['services_list']
-    page = context.user_data['services_page']
+import asyncio
 
+async def send_services_page(update: Update, context: CallbackContext, flag: bool = True):
+    await cleanup_service_menu(update, context)
+    # Determine chat and reply target
+    if update.callback_query:
+        await update.callback_query.answer()
+        chat_id = update.callback_query.message.chat_id
+    else:
+        chat_id = update.message.chat_id
+
+    # Bulk delete old messages
+    old_msgs = context.user_data.get('messages_to_delete', [])
+    if old_msgs:
+        try:
+            await context.bot.delete_messages(chat_id=chat_id, message_ids=old_msgs)
+        except Exception:
+            pass
+    context.user_data['messages_to_delete'] = []
+
+    services = context.user_data.get('services_list', [])
+    page = context.user_data.get('services_page', 0)
     start = page * SERVICES_PER_PAGE
     end = start + SERVICES_PER_PAGE
     sliced_services = services[start:end]
 
-    if not sliced_services:
-        text = "💈 No services to display on this page."
-        reply_markup = None
-    else:
-        # Build the text block
-        text_lines = []
-        keyboard = []
-
-        for service in sliced_services:
-            name = service.get("name", "Unnamed Service")
-            price = service.get("price", "No price")
-            description = service.get("description", "No description")
-            service_id = service.get("service_id", "")
-
-            # store in context_user for use
-            context.user_data["curr_service_name"] = name
-            context.user_data["curr_service_price"] = price
-            context.user_data["curr_service_description"] = description  
-            
-            text_lines.append(
-                f"💈 <b>{name}</b>\n💲Price: {price}\n📝 {description}\n"
+    # send guide message
+    message = await update.callback_query.message.reply_text(
+                "💈 Your Services",
+                parse_mode='Markdown'
             )
+    context.user_data['messages_to_delete'].append(message.message_id)
+    # Prepare coroutines for sending individual service messages
+    tasks = []
+    for service in sliced_services:
+        name = service.get("name", "Unnamed Service")
+        price = service.get("price", "No price")
+        description = service.get("description", "No description")
+        service_id = service.get("service_id", "")
 
-            # Per-service button row
-            keyboard.append([
-                InlineKeyboardButton("✏️ Edit", callback_data=f"edit_{service_id}"),
-                InlineKeyboardButton("🗑️ Delete", callback_data=f"delete_{service_id}")
-            ])            
+        text = (
+            f"💈 <b>{name}</b>\n"
+            f"💲 Price: {price}\n"
+            f"📝 {description}"
+        )
+        buttons = [[
+            InlineKeyboardButton("✏️ Edit", callback_data=f"edit_{service_id}"),
+            InlineKeyboardButton("🗑️ Delete", callback_data=f"delete_{service_id}")
+        ]]
+        reply_markup = InlineKeyboardMarkup(buttons)
 
-        # Add navigation buttons if needed
-        nav_buttons = []
-        if start > 0:
-            nav_buttons.append(InlineKeyboardButton("⬅️ Prev", callback_data="services_prev"))
-        if end < len(services):
-            nav_buttons.append(InlineKeyboardButton("➡️ Next", callback_data="services_next"))
-
-        if nav_buttons:
-            keyboard.append(nav_buttons)
-        keyboard.append([InlineKeyboardButton("🔙 Back", callback_data = "back_to_services_menu"),
-                             InlineKeyboardButton("🏠 Home", callback_data= "back_to_main")])
-        text = "\n".join(text_lines).strip()
-        reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    if update.callback_query:
-        if flag == True:
-            try:
-                message = await update.callback_query.message.edit_text(
-                    text,
-                    reply_markup=reply_markup,
-                    parse_mode='HTML'
-                )
-            except Exception as e:
-                message = await update.callback_query.message.reply_text(
-                    text,
-                    reply_markup=reply_markup,
-                    parse_mode='HTML'
-                )
-    else:
-        try:
-            message = await update.message.edit_text(
-                text,
+        # schedule send_message coroutine
+        tasks.append(
+            context.bot.send_message(
+                chat_id=chat_id,
+                text=text,
                 reply_markup=reply_markup,
                 parse_mode='HTML'
             )
-        except Exception as e:
-            message = await update.message.reply_text(
-                text,
-                reply_markup=reply_markup,
-                parse_mode='HTML'
-            )
-    context.user_data.setdefault('messages_to_delete',[]).append(message.message_id)
+        )
+
+    # Execute all message sends concurrently
+    if tasks:
+        sent_msgs = await asyncio.gather(*tasks, return_exceptions=False)
+        # Collect message IDs
+        for msg in sent_msgs:
+            context.user_data['messages_to_delete'].append(msg.message_id)
+
+    # Build navigation buttons
+    nav_buttons = []
+    if start > 0:
+        nav_buttons.append(InlineKeyboardButton("⬅️ Prev", callback_data="services_prev"))
+    if end < len(services):
+        nav_buttons.append(InlineKeyboardButton("➡️ Next", callback_data="services_next"))
+
+    # Always include back/home
+    footer = [
+        InlineKeyboardButton("🔙 Back", callback_data="back_to_services_menu"),
+        InlineKeyboardButton("🏠 Home", callback_data="back_to_main")
+    ]
+    row = [nav_buttons, footer] if nav_buttons else [footer]
+    nav_markup = InlineKeyboardMarkup(row)
+
+    nav_msg = await context.bot.send_message(
+        chat_id=chat_id,
+        text="🔖 Page {}/{}".format(page + 1, (len(services) - 1) // SERVICES_PER_PAGE + 1),
+        reply_markup=nav_markup
+    )
+    context.user_data['messages_to_delete'].append(nav_msg.message_id)
+
 
 async def handle_service_pagination(update: Update, context: CallbackContext) -> int:
     query = update.callback_query
@@ -346,15 +367,15 @@ async def apply_service_update(update: Update, context: CallbackContext) -> int:
     await view_services(update, context)
     return SERVICES_VIEWING
 
-
-
 ## ----------------- delete service -----------------
 async def confirm_delete_service(update: Update, context: CallbackContext) -> int:
     query = update.callback_query
     await query.answer()
 
     data = query.data  # e.g. "delete_abc123"
+    print(data)
     service_id = data.replace("delete_", "")
+    print(service_id)
 
     context.user_data['pending_delete_service_id'] = service_id
 
@@ -389,6 +410,9 @@ async def handle_confirm_delete(update: Update, context: CallbackContext) -> int
     if service_data.exists and service_data.to_dict().get('email') == barber_email:
         service_doc.delete()
         await query.edit_message_text("🗑️ Service has been deleted!\n\nReturning to services list...")
+        curr_user = context.user_data['current_user']
+        curr_user.services.remove(service_id)
+        curr_user.push_to_db(db)
     else:
         await query.edit_message_text("⚠️ Service not found or you don't have permission to delete it.")
 
@@ -415,6 +439,7 @@ async def handle_cancel_delete(update: Update, context: CallbackContext) -> int:
     return await view_services(update, context, False)  # Show updated list
 
 ## ----------------- create service -----------------
+# 1
 async def start_create_service(update: Update, context: CallbackContext) -> int:
     query = update.callback_query; await query.answer()
     keyboard = []
@@ -428,7 +453,7 @@ async def start_create_service(update: Update, context: CallbackContext) -> int:
     else:
         notice = await update.callback_query.message.reply_text("Please log in first!")
         return ConversationHandler.END
-
+# 2
 async def get_service_name(update: Update, context: CallbackContext) -> int:
     keyboard = []
     keyboard.append([InlineKeyboardButton("❌ Cancel", callback_data = "back_to_services_menu"),
@@ -440,6 +465,7 @@ async def get_service_name(update: Update, context: CallbackContext) -> int:
     context.user_data.setdefault("messages_to_delete", []).append(prompt.message_id)
     return PRICE
 
+# 3
 async def get_service_price(update: Update, context: CallbackContext) -> int:
     keyboard = []
     keyboard.append([InlineKeyboardButton("❌ Cancel", callback_data = "back_to_services_menu"),
@@ -447,29 +473,40 @@ async def get_service_price(update: Update, context: CallbackContext) -> int:
     keyboard = InlineKeyboardMarkup(keyboard)
 
     context.user_data["service_price"] = update.message.text
-    prompt = await update.message.reply_text("Please enter a description of the service.", reply_markup=keyboard)
-    context.user_data.setdefault("messages_to_delete", []).append(prompt.message_id)
-    return DESCRIPTION
-
-async def get_service_description(update: Update, context: CallbackContext) -> int:
-    context.user_data["service_description"] = update.message.text
-    name = context.user_data["service_name"]
+    
+    if (not await price_checker(update, context)):
+        await get_service_name(update, context)
+    else:
+        prompt = await update.message.reply_text("Please enter a description of the service.", reply_markup=keyboard)
+        context.user_data.setdefault("messages_to_delete", []).append(prompt.message_id)
+        return DESCRIPTION
+# 3.5
+async def price_checker(update:Update, context:CallbackContext)->bool:
     price_input = context.user_data["service_price"]
-
     try:
         price = float(price_input)
+        return True
     except ValueError:
         err = await update.message.reply_text("❌ Price must be a number!")
         context.user_data.setdefault("messages_to_delete", []).append(err.message_id)
-        return await start_create_service(update, context)
+        return False
+
+# 4
+async def get_service_description(update: Update, context: CallbackContext) -> int: # final step to add
+    context.user_data["service_description"] = update.message.text
+    name = context.user_data["service_name"]
 
     desc = context.user_data["service_description"]
     barber = context.user_data.get('current_user')
-    service_id = Service.generate_service_id(barber.name, db)
-    service = Service(service_id, barber.name, name, price, desc, barber.email)
-    service.push_to_db(db)
+    price = context.user_data["service_price"]
+    service = Service(barber.name, name, price, desc, barber.email)
+    new_service_id = service.push_to_db(db) #push to db and return new service id
+    current_barber = context.user_data['current_user']
+    current_barber.services.append(new_service_id)
+    current_barber.push_to_db(db)
 
     await update.message.reply_text(f"✅ Service '{name}' created successfully!")
+    await cleanup_messages(update, context)
     await services_menu(update, context)
 
 ## ----------------- other fallbacks -----------------
@@ -489,7 +526,6 @@ async def resend_command(update: Update, context: CallbackContext) -> int:
     return ConversationHandler.END
 
 async def back_to_main(update:Update, context:CallbackContext):
-    print("back tomain HAHAHAHHAHAHAHHAHAAHHA")
     await cleanup_service_menu(update, context)
     await cleanup_messages(update, context)
     await m(update, context)
