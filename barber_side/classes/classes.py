@@ -207,10 +207,27 @@ class Service:
             self.set_price(price)
         if description is not None:
             self.set_description(description)
-        
-        # Push updated data to Firestore
-        self.push_to_db(db)
+
+        # Make sure service_id is present
+        if not hasattr(self, 'service_id') or not self.service_id:
+            print("Error: service_id is missing. Cannot update document.")
+            return
+
+        # Prepare the updated data
+        updated_data = {
+            "barber_id": self.barber_name,
+            "name": self.name,
+            "price": self.price,
+            "description": self.description,
+            "email": self.barber_email
+        }
+
+        # Reference the existing document and update
+        doc_ref = db.collection('services').document(self.service_id)
+        doc_ref.update(updated_data)
+
         print(f"Service '{self.service_id}' updated successfully!")
+
         
     def delete_service(self, db: firestore.Client):
         """Delete this service from Firestore."""
