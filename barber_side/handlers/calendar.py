@@ -134,9 +134,7 @@ async def handle_calendar_selection(update: Update, context: CallbackContext) ->
     
     # when confirmed slot openings
     elif not multi_select_mode and from_confirmed:
-        print("sini boss")
         selected_data = context.user_data.get("selected_date")
-        print(selected_data)
         menu_messages = context.user_data.get('menu_message', [])
         
         # Set date_str from selected data
@@ -231,7 +229,6 @@ async def handle_calendar_selection(update: Update, context: CallbackContext) ->
             button = InlineKeyboardButton("🤝 " + label, callback_data=f"booked_{slot_str}")  # MUST COME AFTER PENDING
         elif start_time < now: # dont show 
             expired_slot_flag = True
-            print("EXIPRE")
             pass
         else:  # Blocked slots are togglable
             cb_data = f"toggle_{slot_str}" if multi_select_mode else "noop_close"
@@ -270,12 +267,11 @@ async def handle_calendar_selection(update: Update, context: CallbackContext) ->
         bot = context.bot
         message = await bot.edit_message_text(f"📆 {slot_date.strftime("%A, %d %B %Y")}", chat_id = query.message.chat_id, message_id = fetch_id, reply_markup=reply_markup)
     except Exception as e:
-        print(f"wahahahhahahaha: {e}")
+        print(f"ERROR: {e}")
         message = await bot.edit_message_text(f"📆 {slot_date.strftime("%A, %d %B %Y")}", chat_id = query.message.chat_id, message_id = fetch_id, reply_markup=reply_markup)
 
     context.user_data.setdefault('messages_to_delete', []).append(query.message.message_id)
     if from_confirmed:
-        print("appending from confirm")
         from_confirmed = False
         menu_messages.append(message.message_id)
     
@@ -566,18 +562,26 @@ async def notify_followers(update: Update, context: CallbackContext) -> int:
 
     if user_choice == "notify_yes":
         try:
-            # Get the matching barber document
-            docs = firestore.client().collection("barbers").where('email', '==', email).limit(1).stream()
-            doc_list = list(docs)
+            current_user = context.user_data['current_user']
+            print(current_user.uuid)
+            doc_ref = db.collection('followers').document(current_user.uuid).collection('users')
+            users_docs = doc_ref.stream()
 
-            if doc_list:
-                doc_ref = doc_list[0].reference
-                doc_ref.update({"notify": True})
-            else:
-                print(f"No barber found with email: {email}")
+            user_ids = [doc.id for doc in users_docs]
+            
+            for telegram_user_id in user_ids:
+                print(telegram_user_id)
+                try:
+                    await context.bot.send_message(
+                        chat_id=int(telegram_user_id),
+                        text=f"{current_user.name} just opened new slots! Check them out!"
+                    )
+                    print("sent")
+                except Exception as e:
+                    print(f"Failed to message user {telegram_user_id}: {e}")
 
         except Exception as e:
-            print(f"Error updating Firestore: {e}")
+            print(f"Error: {e}")
 
     # Delete previous bot messages (if any)
     try:
@@ -647,17 +651,6 @@ async def noop_booked(update: Update, context: CallbackContext) -> None:
     start_time = data.get("start time")
     end_time = data.get("end time")
     
-    print(f"""
-    Barber Email: {barber_email}
-    Barber Name: {barber_name}
-    Customer ID: {customer_id}
-    Phone Number: {phone_number}
-    Username: {username}
-    Service Name: {service_name}
-    Service Price: {service_price}
-    Start Time: {start_time}
-    End Time: {end_time}
-    """)
 
     def convert_to_sg_time(dt):
         if dt is None:

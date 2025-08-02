@@ -269,7 +269,7 @@ EMAIL_SU, PASSWORD_SU, NAME_SU, ADDRESS_SU, POSTCODE_SU, REGION_SU = range(6)
 
 ### Step 1: Ask for email ###
 async def get_email_su(update: Update, context: CallbackContext) -> int:
-    await update.callback_query.message.reply_text("Please enter your email address:")
+    await update.callback_query.message.reply_text("Please enter your email address (at least 6 characters):")
     return EMAIL_SU
 
 ### Step 2: Save email and ask for password ###

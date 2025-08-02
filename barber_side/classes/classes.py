@@ -36,7 +36,8 @@ class Barber:
                 "services": self.services,
                 "notify": self.notify,
                 "portfolio": self.portfolio,
-                "description_id": self.desc_id
+                "description_id": self.desc_id,
+                "uuid": self.uuid
             }
             barber_ref = db.collection('barbers').document(self.doc_id)
             barber_ref.update(barber_data)
@@ -69,11 +70,19 @@ class Barber:
                 "services": self.services,
                 "notify": self.notify,
                 "portfolio": self.portfolio,
-                "description_id": self.desc_id
+                "description_id": self.desc_id,
+                "uuid":user_record.uid
             }
 
-            # Add document with the Firebase UID as the doc_id
+            # Add document with the Firebase UID as the doc_id to 'barbers'
             db.collection('barbers').document(self.doc_id).set(barber_data)
+            
+            # add document to 'followers'
+            follower_document = {
+                "name" : self.name
+            }
+            db.collection('followers').document(self.doc_id).set(follower_document)
+            
             print(f"✅ Created Firebase Auth user and Firestore profile for '{self.name}' (UID: {self.doc_id})")
             return True
 
@@ -82,7 +91,6 @@ class Barber:
             return False
 
     ### static methods ###
-
     @staticmethod
     def get_barber_name(email: str, db: firestore.Client):
         """Fetch the barber's name based on their email."""
