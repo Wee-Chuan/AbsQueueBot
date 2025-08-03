@@ -719,23 +719,47 @@ async def paginate_ratings_reviews(update: Update, context: CallbackContext) -> 
         await query.answer("🙁 No ratings or reviews found.", show_alert=True)
         return SELECT_SERVICE
 
+    # Compute average and total ratings
+    valid_ratings = [
+        int(r.get("rating")) for r in reviews_list
+        if isinstance(r.get("rating"), int) or (isinstance(r.get("rating"), str) and r.get("rating").isdigit())
+    ]
+    total_ratings = len(valid_ratings)
+    average_rating = round(sum(valid_ratings) / total_ratings, 1) if total_ratings > 0 else 0
+    summary_line = f"<b>⭐ {average_rating} ({total_ratings})</b>\n\n"
+
     # Get the current review
     review_data = reviews_list[current_index]
     rating = review_data.get("rating", "No rating")
     review_text = review_data.get("review", "No review text")
+    reviewer_name = review_data.get("reviewer_name", "Anonymous")
     timestamp = review_data.get("timestamp")
-    date_str = timestamp.strftime("%d %b %Y") if timestamp else "Unknown date"
+    
+    # Format timestamp
+    if timestamp:
+        date_str = timestamp.strftime("%a, %d %b %Y at %I:%M %p")
+    else:
+        date_str = "No date available"
+    
+    # Generate star rating
+    try:
+        rating = int(rating)  # Ensure rating is an integer
+        stars = "⭐" * rating + "☆" * (5 - rating)
+    except (TypeError, ValueError):
+        stars = "No rating"
 
     barber_info = HelperUtils.get_user_data(context, "barber_info")
     barber_name = barber_info["name"]
 
     text = (
-        f"💬 <b>Review {current_index+1} of {total}</b>\n"
-        f"\n⭐ <b>{rating}/5</b>"
-        f"\n📝 {review_text}"
-        f"\n📅 {date_str}"
-        f"\n\n👤 <b>{barber_name}</b>"
+        f"<b>{stars}</b>\n"
+        f"<b>{reviewer_name}</b>\n"
+        f"<i>{date_str}</i>\n\n"
+        f"{review_text}"
     )
+
+    # Add review counter (optional)
+    text = summary_line + f"<b>Review {current_index+1} of {total}</b>\n\n" + text
 
     # Pagination buttons
     buttons = []
@@ -784,7 +808,6 @@ async def select_slot(update: Update, context: CallbackContext, page: int=0) -> 
         service_id = HelperUtils.get_user_data(context, "service_id")       
 
     barber_info = HelperUtils.get_user_data(context, "barber_info")
-    print(f"Barber info: {barber_info}")
     if not barber_info or not isinstance(barber_info, dict):
         error_message = Messages.error_message("barber_not_found")
         await query.edit_message_text(error_message)
@@ -990,7 +1013,7 @@ async def confirm_contact(update: Update, context: CallbackContext) -> int:
 async def confirm_booking(update: Update, context: CallbackContext) -> int:
     """ Confirm the booking and push to the database """
     query = update.callback_query
-    await query.answer()                                        # Acknowledge the button press
+    await query.answer()                                                    # Acknowledge the button press
     chat_id = query.message.chat.id
 
     user_response = query.data
@@ -1004,7 +1027,7 @@ async def confirm_booking(update: Update, context: CallbackContext) -> int:
         barber_email = HelperUtils.get_user_data(context, "barber_email")   # Retrieve the selected barber's email
         barber_name = HelperUtils.get_user_data(context, "barber_name")     # Retrieve the selected barber's name
 
-        success, message = Booking.create_booking(
+        success, message, start_time, end_time, service_name = Booking.create_booking(
             slot_id, service_id, user_id, user_name, phone_number, barber_email, barber_name, db)
 
         # Delete stored messages
@@ -1022,6 +1045,52 @@ async def confirm_booking(update: Update, context: CallbackContext) -> int:
             parse_mode="HTML"
         )
         HelperUtils.reset_conversation_state(context)
+
+        # Notify the barber if telegram_id is stored
+        if success:
+            try:
+                # Get barber's document
+                barber_query = db.collection("barbers").where("email", "==", barber_email).limit(1)
+                docs = barber_query.stream()
+                barber_doc = next(docs, None)
+
+                if barber_doc:
+                    barber_data = barber_doc.to_dict()
+                    barber_telegram_id = barber_data.get("telegram_id")
+
+                    if barber_telegram_id:
+                        # Get slot details for notification
+                        start_time_sgt = Booking.convert_to_sgt(start_time)
+                        end_time_sgt = Booking.convert_to_sgt(end_time)
+
+                        # Sanitize variables before sending message
+                        if isinstance(user_name, set):
+                            user_name = ', '.join(str(x) for x in user_name)
+                        if isinstance(phone_number, set):
+                            phone_number = ', '.join(str(x) for x in phone_number)
+                        if isinstance(service_name, set):
+                            service_name = ', '.join(str(x) for x in service_name)
+                        if isinstance(barber_name, set):
+                            barber_name = ', '.join(str(x) for x in barber_name)
+
+                        await context.bot.send_message(
+                            chat_id=barber_telegram_id,
+                            text=(
+                                f"📢 <b>New Booking Received</b>\n\n"
+                                f"👤 <b>Customer:</b> {user_name}\n"
+                                f"📞 <b>Phone:</b> {phone_number}\n"
+                                f"📋 <b>Service:</b> {service_name}\n"
+                                f"🕛 <b>Time:</b> {start_time_sgt.strftime('%I:%M %p')} - {end_time_sgt.strftime('%I:%M %p')}\n"
+                                f"📅 <b>Date:</b> {start_time_sgt.strftime('%a %d/%m/%Y')}"
+                            ),
+                            parse_mode="HTML"
+                        )
+                    else:
+                        print(f"Barber {barber_name} does not have a Telegram ID stored.")
+                else:
+                    print("Barber document not found.")
+            except Exception as e:
+                print(f"Failed to notify barber: {e}")
 
     elif user_response == "cancel_booking":
         # Delete stored messages

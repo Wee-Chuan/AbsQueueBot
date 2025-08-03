@@ -391,8 +391,11 @@ async def save_rating(update: Update, context: CallbackContext) -> int:
         await query.edit_message_text("Error: Booking ID not found.")
         return ConversationHandler.END
     
+    # Get reviewer name
+    reviewer_name = update.effective_user.full_name if update.effective_user else "Unknown User"
+
     # Save the rating using Booking class method
-    success, message = Booking.save_rating(booking_id, rating, db)
+    success, message = Booking.save_rating(booking_id, rating, reviewer_name, db)
 
     # Show thank you with back button
     keyboard = [[
@@ -425,9 +428,12 @@ async def save_review(update: Update, context: CallbackContext) -> int:
     """Save the user's review text."""
     review_text = update.message.text
     booking_id = context.user_data.get('booking_id')
+
+    # Get reviewer name
+    reviewer_name = update.effective_user.full_name if update.effective_user else "Unknown User"
     
     # Save the review using Booking class method
-    success, message = Booking.save_review(booking_id, review_text, db)
+    success, message = Booking.save_review(booking_id, review_text, reviewer_name, db)
 
     # Show thank you with back button
     keyboard = [[

@@ -199,6 +199,17 @@ async def get_login_details(update: Update, context: CallbackContext) -> int:
         context.user_data['current_user'] = current_barber
         context.user_data['logged_in'] = True
         print("\n✅ Barber object saved to context.user_data\n")
+
+        # Save telegram ID to Firestore
+        telegram_id = update.message.from_user.id
+        try:
+            if barber_doc.get("telegram_id") != telegram_id:
+                db.collection('barbers').document(result_list[0].id).update({
+                    "telegram_id": telegram_id
+                })
+                print(f"Telegram ID {telegram_id} saved for {email}")
+        except Exception as e:
+            print(f"❌ Failed to update Telegram ID: {e}")
         
         # Send the welcome message
         welcome_message = f"✅ Login successful\\! 🎉\nWelcome back, *{current_barber.name}* 👋"

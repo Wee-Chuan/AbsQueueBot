@@ -121,8 +121,20 @@ class Booking:
     @staticmethod
     def get_barber_services(barber_name: str, db: firestore.Client):
         """Fetch all services offered by selected barber."""
-        services_ref = db.collection('services').where("barber_id", "==", barber_name).stream()
-        services = [(service.id, service.to_dict()) for service in services_ref]
+        barbers_ref = db.collection('barbers').where("name", "==", barber_name).stream()
+        barber_data = next(barbers_ref, None)
+        if not barber_data:
+            return []
+        
+        barber_data = barber_data.to_dict()
+        service_ids = barber_data.get('services', [])
+
+        services = []
+        for service_id in service_ids:
+            service_doc = db.collection('services').document(service_id).get()
+            if service_doc.exists:
+                services.append((service_doc.id, service_doc.to_dict()))
+
         return services
 
     @staticmethod
@@ -234,15 +246,20 @@ class Booking:
                 start_time_sgt = Booking.convert_to_sgt(start_time)
                 end_time_sgt = Booking.convert_to_sgt(end_time)
 
-                return True, f"✅ Slot booked successfully!\n\n" \
-                             f"💈 <b>Barber:</b> {barber_name}\n" \
-                             f"📋 <b>Service:</b> {service_name}\n" \
-                             f"💲 <b>Price:</b> ${service_price}\n\n" \
-                             f"📅 <b>Date:</b> {start_time_sgt.strftime('%a %d/%m/%Y')}\n" \
-                             f"🕛 <b>Time:</b> {start_time_sgt.strftime('%I:%M %p')} - {end_time_sgt.strftime('%I:%M %p')}\n\n" \
-                             f"Thank you, {user_name}! You can view your bookings back at /client_menu"
+                message = (
+                    f"✅ Slot booked successfully!\n\n" 
+                    f"💈 <b>Barber:</b> {barber_name}\n" 
+                    f"📋 <b>Service:</b> {service_name}\n" 
+                    f"💲 <b>Price:</b> ${service_price}\n\n" 
+                    f"📅 <b>Date:</b> {start_time_sgt.strftime('%a %d/%m/%Y')}\n" 
+                    f"🕛 <b>Time:</b> {start_time_sgt.strftime('%I:%M %p')} - {end_time_sgt.strftime('%I:%M %p')}\n\n" 
+                    f"Thank you, {user_name}! You can view your bookings back at /client_menu"
+                )
+
+                return True, message, start_time, end_time, service_name
+                            
             else:
-                return False, "Failed to book the slot. Please try again later."
+                return False, "Failed to book the slot. Please try again later.", None, None, None
 
         except Exception as e:
             print(f"Error creating booking: {e}")
@@ -513,7 +530,7 @@ class Booking:
             return None
     
     @staticmethod
-    def save_rating(booking_id: str, rating: int, db: firestore.Client):
+    def save_rating(booking_id: str, rating: int, reviewer_name: str, db: firestore.Client):
         """Save the rating for a completed booking."""
         try:
             # Update the booking document with the rating
@@ -539,6 +556,7 @@ class Booking:
             db.collection("barbers").document(barber_id).collection("ratings and reviews").document(booking_id).set({
                 "booking_id": booking_id,
                 "rating": rating,
+                "reviewer_name": reviewer_name,
                 "timestamp": datetime.now(timezone)
             }, merge=True)
 
@@ -548,7 +566,7 @@ class Booking:
             return False, f"Error: {str(e)}"
         
     @staticmethod
-    def save_review(booking_id: str, review: str, db: firestore.Client):
+    def save_review(booking_id: str, review: str, reviewer_name: str, db: firestore.Client):
         """Save the review for a completed booking."""
         try:
             # Update the booking document with the review
@@ -574,6 +592,7 @@ class Booking:
             db.collection("barbers").document(barber_id).collection("ratings and reviews").document(booking_id).set({
                 "booking_id": booking_id,
                 "review": review,
+                "reviewer_name": reviewer_name,
                 "timestamp": datetime.now(timezone)
             }, merge=True)
 
