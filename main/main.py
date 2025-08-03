@@ -114,8 +114,8 @@ class BarberBot:
             reply_markup=ReplyKeyboardRemove()
         )
 
-        # wait for 2 seconds 
-        await asyncio.sleep(1)
+        # wait for 1 seconds 
+        await asyncio.sleep(0.6)
 
         # Delete the loading message
         try:
