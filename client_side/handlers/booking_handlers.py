@@ -862,7 +862,7 @@ async def select_slot(update: Update, context: CallbackContext, page: int=0) -> 
             error_message = Messages.error_message("no_slots")
             await query.answer(error_message, show_alert=True)
 
-            return SELECT_SLOT
+            return SELECT_SERVICE
 
         # Organize slots by date
         slots_by_date = {}
@@ -1331,7 +1331,7 @@ book_slots_handler = ConversationHandler(
         ],
         LEARN_MORE: [
             CallbackQueryHandler(search_barber, pattern="^back_to_search_info$"),
-            CallbackQueryHandler(view_barber_details, pattern="back_to_info"),
+            CallbackQueryHandler(view_barber_details, pattern="^back_to_info"),
             CallbackQueryHandler(client_menu, pattern="^back_to_menu$"),
         ],
         VIEW_RATINGS_REVIEWS: [
@@ -1344,7 +1344,7 @@ book_slots_handler = ConversationHandler(
         SELECT_SLOT: [
             CallbackQueryHandler(select_slot, pattern="^service_"),
             CallbackQueryHandler(search_barber, pattern="^back_to_search_info$"),
-            CallbackQueryHandler(view_barber_details, pattern="back_to_info"),
+            CallbackQueryHandler(view_barber_details, pattern="^back_to_info"),
             CallbackQueryHandler(client_menu, pattern="^back_to_menu$"),
         ],
         REQUEST_CONTACT: [

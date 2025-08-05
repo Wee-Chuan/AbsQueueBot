@@ -20,7 +20,7 @@ from client_side.utils.messages import Messages
 from shared.utils import HelperUtils
 from client_side.classes.booking import Booking
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # ==================== CONSTANTS ====================
 VIEW_BOOKINGS_OPTIONS, VIEW_UPCOMING_BOOKINGS, VIEW_PAST_BOOKINGS, VIEW_CALENDAR, CONFIRM_CANCEL, CONFIRM_COMPLETE, RATE_SERVICE, LEAVE_REVIEW  = range(8)
@@ -150,6 +150,7 @@ async def view_past_bookings(update: Update, context: CallbackContext) -> int:
     HelperUtils.clear_user_data(context, "selected_date")  # Clear any previously selected date
 
     user_id = query.from_user.id
+    six_months_ago = datetime.now() - timedelta(days=180)
     
     # Get completed and no-show bookings
     completed_bookings = Booking.get_completed_bookings(user_id, db)
@@ -158,10 +159,12 @@ async def view_past_bookings(update: Update, context: CallbackContext) -> int:
     # Combine and sort by date (newest first)
     past_bookings = []
     for booking_id, start_time, details, _, _ in completed_bookings:
-        past_bookings.append((start_time, booking_id, details, "✅ Completed"))
+        if start_time >= six_months_ago:
+            past_bookings.append((start_time, booking_id, details, "✅ Completed"))
     
     for booking_id, start_time, details in no_show_bookings:
-        past_bookings.append((start_time, booking_id, details, "❌ No Show"))
+        if start_time >= six_months_ago:
+            past_bookings.append((start_time, booking_id, details, "❌ No Show"))
     
     # Sort by date (newest first)
     past_bookings.sort(reverse=True)
@@ -179,7 +182,7 @@ async def view_past_bookings(update: Update, context: CallbackContext) -> int:
         # Group bookings by date
         bookings_by_date = {}
         for start_time, booking_id, details, status in past_bookings:
-            date_str = start_time.strftime("%A, %d %b %Y")
+            date_str = start_time.strftime("%d %b %Y, %A")
             if date_str not in bookings_by_date:
                 bookings_by_date[date_str] = []
             bookings_by_date[date_str].append((start_time, booking_id, details, status))
