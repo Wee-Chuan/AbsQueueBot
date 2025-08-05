@@ -150,7 +150,7 @@ async def view_past_bookings(update: Update, context: CallbackContext) -> int:
     HelperUtils.clear_user_data(context, "selected_date")  # Clear any previously selected date
 
     user_id = query.from_user.id
-    six_months_ago = datetime.now() - timedelta(days=180)
+    six_months_ago = datetime.now(timezone) - timedelta(days=180)
     
     # Get completed and no-show bookings
     completed_bookings = Booking.get_completed_bookings(user_id, db)
@@ -216,7 +216,7 @@ async def show_date_bookings(update: Update, context: CallbackContext) -> int:
 
     if query.data.startswith("show_date_"):
         date_str = query.data.replace("show_date_", "")
-        selected_date = datetime.strptime(date_str, "%A, %d %b %Y").date()
+        selected_date = datetime.strptime(date_str, "%d %b %Y, %A").date()
 
         HelperUtils.set_user_data(context, "selected_date", selected_date)  # Store the selected date
         print(f"Selected date: {selected_date}")
