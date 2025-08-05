@@ -209,13 +209,23 @@ class Booking:
     
     # Function to create a new booking
     @staticmethod
-    def create_booking(slot_id, service_id, user_id, user_name, phone_number, barber_email, barber_name, db: firestore.Client):
+    def create_booking(slot_id, service_ids, user_id, user_name, phone_number, barber_email, barber_name, db: firestore.Client):
         """Create a new booking and push it to Firestore"""
         try:
-            # Fetch the selected service name and price from Firestore
-            service_name, service_price = Booking.fetch_service_details(service_id, db)
-            if not service_name:
-                return False, "This service no longer exists."
+            # Fetch the selected service names and prices from Firestore"
+            total_service_price = 0.0
+            service_names = []
+            service_prices = []
+
+            for sid in service_ids:
+                service_name, service_price = Booking.fetch_service_details(sid, db)
+                if not service_name:
+                    return False, f"This service '{sid}' no longer exists."
+                service_names.append(service_name)
+                service_prices.append(service_price)
+                total_service_price += float(service_price) if service_price is not None else 0.0
+            
+            service_name_str = ', '.join(service_names)
 
             # Fetch the selected slot start and end time from Firestore
             start_time, end_time = Booking.fetch_slot_details(slot_id, db)
@@ -233,9 +243,9 @@ class Booking:
                 phone_number=phone_number,
                 start_time=start_time,
                 end_time=end_time,
-                service_id=service_id,
-                service_name=service_name,
-                service_price=service_price
+                service_id=service_ids,
+                service_name=service_names,
+                service_price=total_service_price
             )
 
             # Push the booking to Firestore
@@ -251,14 +261,14 @@ class Booking:
                 message = (
                     f"✅ Slot booked successfully!\n\n" 
                     f"💈 <b>Barber:</b> {barber_name}\n" 
-                    f"📋 <b>Service:</b> {service_name}\n" 
-                    f"💲 <b>Price:</b> ${service_price}\n\n" 
+                    f"📋 <b>Services:</b> {service_name_str}\n" 
+                    f"💲 <b>Total Price:</b> ${total_service_price:.2f}\n\n" 
                     f"📅 <b>Date:</b> {start_time_sgt.strftime('%a %d/%m/%Y')}\n" 
                     f"🕛 <b>Time:</b> {start_time_sgt.strftime('%I:%M %p')} - {end_time_sgt.strftime('%I:%M %p')}\n\n" 
                     f"Thank you, {user_name}! You can view your bookings back at /client_menu"
                 )
 
-                return True, message, start_time, end_time, service_name
+                return True, message, start_time, end_time, service_name_str
                             
             else:
                 return False, "Failed to book the slot. Please try again later.", None, None, None
@@ -284,7 +294,8 @@ class Booking:
                 end_time = booking_data["end time"]
                 barber_email = booking_data["barber_email"]
                 barber_name = booking_data["barber_name"]
-                service_name = booking_data["service_name"]
+                service_names = booking_data.get("service_name", [])
+                service_name = ', '.join(service_names) if isinstance(service_names, list) else service_names
                 service_price = booking_data["service_price"]
                 user_name = user_info["username"]
                 phone_number = user_info["phone_number"]
@@ -313,8 +324,8 @@ class Booking:
                         f"💈 <b>Barber:</b> {barber_name}\n"
                         f"📍 <b>Location:</b> {barber_address}, {barber_postal}\n"
                         f"🌍 <b>Region:</b> {barber_region}\n\n"
-                        f"📋 <b>Service:</b> {service_name}\n"
-                        f"💲 <b>Price:</b> ${service_price}\n"  
+                        f"📋 <b>Services:</b> {service_name}\n"
+                        f"💲 <b>Total Price:</b> ${service_price}\n"  
                         f"🕛 <b>Total duration:</b> {start_time_sgt.strftime('%I:%M %p')} - {end_time_sgt.strftime('%I:%M %p')}" 
                     )
                 )
@@ -378,7 +389,8 @@ class Booking:
                 end_time = booking_data["end time"]
                 barber_email = booking_data["barber_email"]
                 barber_name = booking_data["barber_name"]
-                service_name = booking_data["service_name"]
+                service_names = booking_data.get("service_name", [])
+                service_name = ', '.join(service_names) if isinstance(service_names, list) else service_names
                 service_price = booking_data["service_price"]
                 rating = booking_data.get("rating", "No rating yet")
                 review = booking_data.get("review", "No review yet")
@@ -438,7 +450,8 @@ class Booking:
                 end_time = booking_data["end time"]
                 barber_email = booking_data["barber_email"]
                 barber_name = booking_data["barber_name"]
-                service_name = booking_data["service_name"]
+                service_names = booking_data.get("service_name", [])
+                service_name = ', '.join(service_names) if isinstance(service_names, list) else service_names
                 service_price = booking_data["service_price"]
 
                 # Get additional details
@@ -493,7 +506,8 @@ class Booking:
                 start_time = booking_data["start time"]
                 end_time = booking_data["end time"]
                 barber_name = booking_data["barber_name"]
-                service_name = booking_data["service_name"]
+                service_names = booking_data.get("service_name", [])
+                service_name = ', '.join(service_names) if isinstance(service_names, list) else service_names
                 service_price = booking_data["service_price"]
 
                 # Get additional details

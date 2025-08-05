@@ -588,9 +588,10 @@ async def search_barber(update: Update, context: CallbackContext) -> int:
 async def select_service(update: Update, context: CallbackContext) -> int:
     """Show available services from the selected barber"""
     query = update.callback_query
+    data = query.data
     search_type = HelperUtils.get_user_data(context, "search_type")
-    
     barber_info = HelperUtils.get_user_data(context, "barber_info")
+
     if not barber_info or not isinstance(barber_info, dict):
         error_message = Messages.error_message("barber_not_found")
         await query.answer(error_message)
@@ -606,22 +607,40 @@ async def select_service(update: Update, context: CallbackContext) -> int:
         if not services:
             error_message = Messages.error_message("no_services")
             await query.answer(error_message, show_alert=True)
-            
             return SELECT_SERVICE
-    
-        # Create inline buttons for each service
-        # callback_data is used to store the service id
-        keyboard = [
-            [InlineKeyboardButton(f"{service['name']} - ${service['price']}", callback_data=f"service_{service_id}")]
-            for service_id, service in services
-        ]
+
+        # Initialize selected services list
+        if "selected_services" not in context.user_data:
+            context.user_data["selected_services"] = set()
+        
+        selected_services = context.user_data["selected_services"]
+
+        # Handle toggle of service selection
+        if data and data.startswith("service_"):
+            selected_service_id = data.split("_", 1)[1]  # Extract service ID from callback data
+            if selected_service_id in selected_services:
+                selected_services.remove(selected_service_id)  # Deselect service
+            else:
+                selected_services.add(selected_service_id)  # Select service
+        
+        # Rebuild keyboard with tick marks for selected services
+        keyboard = []
+        for service_id, service in services:
+            is_selected = service_id in selected_services
+            label = f"{service['name']} - ${service['price']}"
+            if is_selected:
+                label = f"{label} ✅"  # Add tick mark for selected services
+            keyboard.append([InlineKeyboardButton(label, callback_data=f"service_{service_id}")])
+        
+        # Add confirm button if any services are selected
+        if selected_services:
+            keyboard.append([InlineKeyboardButton("✅ Confirm", callback_data="confirm_services")])
 
         keyboard.extend(Keyboards.service_keyboard(barber_doc_id, search_type))  # Add back button to barber details
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         # Use the Messages class to generate the header message
         message = Messages.header_message("select_service", {"barber_name": barber_name})
-
         msg = await query.edit_message_text(
             message, 
             reply_markup=reply_markup,
@@ -629,13 +648,27 @@ async def select_service(update: Update, context: CallbackContext) -> int:
         )
         HelperUtils.store_message_id(context, msg.message_id)
 
-        return SELECT_SLOT
+        return SELECT_SERVICE
 
     except Exception as e:
         error_message = Messages.error_message("generic_error", additional_info=str(e))
         await query.edit_message_text(error_message)
         HelperUtils.reset_conversation_state(context)
         return ConversationHandler.END
+
+@HelperUtils.check_conversation_active
+async def confirm_services_callback(update: Update, context: CallbackContext) -> int:
+    """Confirm selected services and proceed to slot selection."""
+    query = update.callback_query
+    selected_services = context.user_data.get("selected_services")
+
+    if not selected_services:
+        await query.answer("No services selected. Please select at least one service.", show_alert=True)
+        return SELECT_SERVICE
+
+    HelperUtils.set_user_data(context, "confirmed_services", list(selected_services))
+
+    return await select_slot(update, context)
 
 @HelperUtils.check_conversation_active
 async def learn_more(update: Update, context: CallbackContext) -> int:
@@ -801,11 +834,12 @@ async def select_slot(update: Update, context: CallbackContext, page: int=0) -> 
     """Function to select slot after choosing a service."""
     query = update.callback_query
 
-    if query.data and query.data.startswith("service_"):
-        service_id = query.data.replace("service_", "")
-        HelperUtils.set_user_data(context, "service_id", service_id)
-    else:
-        service_id = HelperUtils.get_user_data(context, "service_id")       
+    confirmed_services = HelperUtils.get_user_data(context, "confirmed_services")
+    if not confirmed_services:
+        await query.answer("Please select at least one service before proceeding.", show_alert=True)
+        return SELECT_SERVICE
+    
+    HelperUtils.set_user_data(context, "service_ids", confirmed_services)  # Store confirmed services
 
     barber_info = HelperUtils.get_user_data(context, "barber_info")
     if not barber_info or not isinstance(barber_info, dict):
@@ -1020,15 +1054,15 @@ async def confirm_booking(update: Update, context: CallbackContext) -> int:
 
     if user_response == "confirm_booking":
         slot_id = HelperUtils.get_user_data(context, "slot_id")             # Retrieve the selected slot id
-        service_id = HelperUtils.get_user_data(context, "service_id")       # Retrieve the selected service id
+        service_ids = HelperUtils.get_user_data(context, "service_ids")       # Retrieve the selected services
         user_id = query.from_user.id
         user_name = query.from_user.first_name
         phone_number = HelperUtils.get_user_data(context, "phone_number")   # Retrieve the user's phone number
         barber_email = HelperUtils.get_user_data(context, "barber_email")   # Retrieve the selected barber's email
         barber_name = HelperUtils.get_user_data(context, "barber_name")     # Retrieve the selected barber's name
 
-        success, message, start_time, end_time, service_name = Booking.create_booking(
-            slot_id, service_id, user_id, user_name, phone_number, barber_email, barber_name, db)
+        success, message, start_time, end_time, service_name_str = Booking.create_booking(
+            slot_id, service_ids, user_id, user_name, phone_number, barber_email, barber_name, db)
 
         # Delete stored messages
         if "message_ids" in context.user_data:
@@ -1068,8 +1102,8 @@ async def confirm_booking(update: Update, context: CallbackContext) -> int:
                             user_name = ', '.join(str(x) for x in user_name)
                         if isinstance(phone_number, set):
                             phone_number = ', '.join(str(x) for x in phone_number)
-                        if isinstance(service_name, set):
-                            service_name = ', '.join(str(x) for x in service_name)
+                        if isinstance(service_name_str, set):
+                            service_name_str = ', '.join(str(x) for x in service_name_str)
                         if isinstance(barber_name, set):
                             barber_name = ', '.join(str(x) for x in barber_name)
 
@@ -1079,7 +1113,7 @@ async def confirm_booking(update: Update, context: CallbackContext) -> int:
                                 f"📢 <b>New Booking Received</b>\n\n"
                                 f"👤 <b>Customer:</b> {user_name}\n"
                                 f"📞 <b>Phone:</b> {phone_number}\n"
-                                f"📋 <b>Service:</b> {service_name}\n"
+                                f"📋 <b>Services:</b> {service_name_str}\n"
                                 f"🕛 <b>Time:</b> {start_time_sgt.strftime('%I:%M %p')} - {end_time_sgt.strftime('%I:%M %p')}\n"
                                 f"📅 <b>Date:</b> {start_time_sgt.strftime('%a %d/%m/%Y')}"
                             ),
@@ -1283,6 +1317,8 @@ book_slots_handler = ConversationHandler(
         ],
         SELECT_SERVICE: [
             CallbackQueryHandler(select_service, pattern="^select_services_"),
+            CallbackQueryHandler(select_service, pattern="^service_"),
+            CallbackQueryHandler(confirm_services_callback, pattern="^confirm_services$"), 
             CallbackQueryHandler(learn_more, pattern="^learn_more_"),
             CallbackQueryHandler(view_ratings_reviews, pattern="^view_ratings_reviews_"),
             CallbackQueryHandler(view_barber_details, pattern="^follow_"),
