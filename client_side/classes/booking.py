@@ -261,7 +261,7 @@ class Booking:
                 message = (
                     f"✅ Slot booked successfully!\n\n" 
                     f"💈 <b>Barber:</b> {barber_name}\n" 
-                    f"📋 <b>Services:</b> {service_name_str}\n" 
+                    f"📋 <b>Service(s):</b> {service_name_str}\n" 
                     f"💲 <b>Total Price:</b> ${total_service_price:.2f}\n\n" 
                     f"📅 <b>Date:</b> {start_time_sgt.strftime('%a %d/%m/%Y')}\n" 
                     f"🕛 <b>Time:</b> {start_time_sgt.strftime('%I:%M %p')} - {end_time_sgt.strftime('%I:%M %p')}\n\n" 
@@ -616,3 +616,4 @@ class Booking:
         except Exception as e:
             print(f"Error saving review: {e}")
             return False, f"Error: {str(e)}"
+    

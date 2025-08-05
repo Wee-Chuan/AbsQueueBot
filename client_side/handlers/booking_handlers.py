@@ -1028,15 +1028,51 @@ async def confirm_contact(update: Update, context: CallbackContext) -> int:
     )
     HelperUtils.store_message_id(context, contact_msg.message_id)
 
-    # Confirm booking
-    keyboard = Keyboards.confirm_booking_keyboard()
-    reply_markup = InlineKeyboardMarkup(keyboard)
+    # Confirmation message for booking
+    slot_id = HelperUtils.get_user_data(context, "slot_id") 
+    service_ids = HelperUtils.get_user_data(context, "service_ids") 
+    barber_name = HelperUtils.get_user_data(context, "barber_name")
+
+    # Get slot details
+    start_time, end_time = Booking.fetch_slot_details(slot_id, db)  # Fetch slot details
+    if not start_time or not end_time:
+        await update.message.reply_text("⚠️ Invalid slot selected. Please try again.")
+        return SELECT_SERVICE
+    
+    start_time_sgt = Booking.convert_to_sgt(start_time)  
+    end_time_sgt = Booking.convert_to_sgt(end_time)   
+
+    # Get service details
+    total_service_price = 0.0
+    service_names = []
+    service_prices = []
+
+    for sid in service_ids:
+        service_name, service_price = Booking.fetch_service_details(sid, db)
+        if not service_name:
+            return False, f"This service '{sid}' no longer exists."
+        service_names.append(service_name)
+        service_prices.append(service_price)
+        total_service_price += float(service_price) if service_price is not None else 0.0
+    
+    service_name_str = ', '.join(service_names) 
+
+    summary_text = (
+        "<b>📋 Please review your booking:</b>\n\n"
+        f"💈 <b>Barber:</b> {barber_name}\n"
+        f"📋 <b>Service(s):</b> {service_name_str}\n"
+        f"💲 <b>Total Price:</b> ${total_service_price:.2f}\n\n"
+        f"📅 <b>Date:</b> {start_time_sgt.strftime('%a %d/%m/%Y')}\n" 
+        f"🕛 <b>Time:</b> {start_time_sgt.strftime('%I:%M %p')} - {end_time_sgt.strftime('%I:%M %p')}\n\n" 
+        "✅ Please confirm or cancel your booking."
+    )
 
     # Send confirmation message
     msg = await context.bot.send_message(
         chat_id=update.effective_chat.id,
-        text=Messages.header_message("confirm_booking"),
-        reply_markup=InlineKeyboardMarkup(Keyboards.confirm_booking_keyboard())
+        text=summary_text,
+        reply_markup=InlineKeyboardMarkup(Keyboards.confirm_booking_keyboard()),
+        parse_mode="HTML"
     )
 
     HelperUtils.store_message_id(context, msg.message_id)
