@@ -86,19 +86,48 @@
             }
         }
 
+        /* Custom barber search dropdown */
+        #barber-search-results {
+            position: absolute; 
+            top: 42px; 
+            left: 10px; 
+            width: 300px; 
+            max-height: 250px; 
+            overflow-y: auto; 
+            background: white; 
+            border: 1px solid #ccc; 
+            z-index: 10;
+            display: none;
+            font-family: Arial, sans-serif;
+        }
+        #barber-search-results div {
+            padding: 8px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+        }
+        #barber-search-results div:hover {
+            background-color: #f5f5f5;
+        }
+
     </style>
 </head>
 <body>
 
     <div id="map"></div>
+    <input
+        id="barber-search"
+        type="text"
+        placeholder="Search for barber..."
+        style="position: absolute; top: 10px; left: 10px; width: 300px; z-index: 15; padding: 8px; font-size: 14px;"
+    />
+    <div id="barber-search-results"></div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
     <script
-        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDHw-39ypHBYZQ8ustR2wqBCuKUPBJ4Lkc&callback=initMap&libraries=marker"
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDHw-39ypHBYZQ8ustR2wqBCuKUPBJ4Lkc&callback=initMap&libraries=marker,places"
         async
         defer
-        loading="async"
     ></script>
 
     <script>
@@ -118,6 +147,7 @@
     let directionsService;
     let directionsRenderer;
     let barberMarkers = []; 
+    let barbers = []; // store barbers locally for searching
 
     // Initialize Telegram WebApp if available
     if (window.Telegram && window.Telegram.WebApp) {
@@ -129,11 +159,9 @@
         map = new google.maps.Map(document.getElementById("map"), {
             center: { lat: 1.3521, lng: 103.8198 }, // Singapore
             zoom: 13,
-            zoomControl: true,         // Enables zoom control buttons
-            scaleControl: true,        // Enables scale control
-            streetViewControl: true,   // Enables Street View control (pegman icon)
-            mapTypeControl: true,      // Enables map type control (satellite, terrain, etc.)
-            fullscreenControl: true,   // Enables fullscreen control (fullscreen icon)
+            fullscreenControl: true,
+            mapTypeControl: false,    
+            streetViewControl: false,
             // Enable "My Location" button (geolocation)
             geolocationControl: true,
             mapId: "80a3e6a5d1b30a3652dce37a"
@@ -150,20 +178,50 @@
                 // Center map on user's location
                 map.setCenter(userLocation);
 
-                // Add a marker for user's location
-                const userIcon = document.createElement("div");
-                userIcon.innerHTML = `
-                <svg width="48" height="48" viewBox="0 0 24 24">
-                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" fill="#4285F4" stroke="#fff" stroke-width="2"/>
-                </svg>
-                `;
-
-                const marker = new google.maps.marker.AdvancedMarkerElement({
-                    position: userLocation,
-                    map: map,
-                    content: userIcon,
-                    title: "You are here",
+                // Create the blue dot circle (solid fill)
+                const locationCircle = new google.maps.Circle({
+                strokeColor: '#4285F4',
+                strokeOpacity: 1,
+                strokeWeight: 2,
+                fillColor: '#4285F4',
+                fillOpacity: 1,
+                map: map,
+                center: userLocation,
+                radius: 10, // 10 meters radius circle for the blue dot
+                clickable: false,
+                zIndex: 999,
                 });
+
+                // Create the outer light blue halo circle (larger, translucent)
+                const haloCircle = new google.maps.Circle({
+                strokeColor: '#4285F4',
+                strokeOpacity: 0,
+                strokeWeight: 0,
+                fillColor: '#4285F4',
+                fillOpacity: 0.3,
+                map: map,
+                center: userLocation,
+                radius: 40, // Larger radius for halo effect
+                clickable: false,
+                zIndex: 998,
+                });
+
+                // Optionally animate the halo by changing its radius with setInterval
+                let growing = true;
+                let radius = 40;
+                setInterval(() => {
+                if (growing) {
+                    radius += 1;
+                    if (radius >= 50) growing = false;
+                } else {
+                    radius -= 1;
+                    if (radius <= 40) growing = true;
+                }
+                haloCircle.setRadius(radius);
+                // Also fade opacity for nice effect if you want, e.g.,
+                // haloCircle.setOptions({ fillOpacity: 0.3 * (50 - radius) / 10 });
+                }, 80);
+
             }, (error) => {
                 // Handle errors, such as "user denied" or "location unavailable"
                 if (error.code === error.PERMISSION_DENIED) {
@@ -230,26 +288,56 @@
                         map.setCenter(userLocation);
                         map.setZoom(16);
                         
-                        // Clear previous user marker if exists
+                        // Clear previous user marker and halo if exist
                         if (window.userLocationMarker) {
                             window.userLocationMarker.setMap(null);
                         }
+                        if (window.userLocationHalo) {
+                            window.userLocationHalo.setMap(null);
+                        }
                         
-                        // Create custom marker content
-                        const userIcon = document.createElement("div");
-                        userIcon.innerHTML = `
-                            <svg width="48" height="48" viewBox="0 0 24 24">
-                                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" fill="#4285F4" stroke="#fff" stroke-width="2"/>
-                            </svg>
-                        `;
-
-                        // Add new marker
-                        window.userLocationMarker = new google.maps.marker.AdvancedMarkerElement({
+                        // Create the blue dot marker using circle symbol
+                        window.userLocationMarker = new google.maps.Marker({
                             position: userLocation,
                             map: map,
                             title: "You are here",
-                            content: userIcon 
+                            icon: {
+                                path: google.maps.SymbolPath.CIRCLE,
+                                scale: 8,
+                                fillColor: '#4285F4',
+                                fillOpacity: 1,
+                                strokeWeight: 2,
+                                strokeColor: 'white',
+                            }
                         });
+
+                        // Create halo circle around the blue dot
+                        window.userLocationHalo = new google.maps.Circle({
+                            strokeColor: '#4285F4',
+                            strokeOpacity: 0,
+                            strokeWeight: 0,
+                            fillColor: '#4285F4',
+                            fillOpacity: 0.3,
+                            map: map,
+                            center: userLocation,
+                            radius: 40, // radius in meters
+                        });
+
+                        // Optional: add pulse animation on halo (simple)
+                        let growing = true;
+                        let radius = 40;
+                        if (window.haloPulseInterval) clearInterval(window.haloPulseInterval);
+                        window.haloPulseInterval = setInterval(() => {
+                            if (growing) {
+                                radius += 1;
+                                if (radius >= 50) growing = false;
+                            } else {
+                                radius -= 1;
+                                if (radius <= 40) growing = true;
+                            }
+                            window.userLocationHalo.setRadius(radius);
+                            // You can also animate fillOpacity if desired
+                        }, 80);
                     },
                     (error) => {
                         let errorMessage = "Could not get your location.";
@@ -281,59 +369,155 @@
         });
     }
 
+    function createCircularMarkerFromName(name) {
+        const markerDiv = document.createElement("div");
+        markerDiv.style.width = "40px";
+        markerDiv.style.height = "40px";
+        markerDiv.style.border = "3px solid #000000"; // black border
+        markerDiv.style.borderRadius = "50%";
+        markerDiv.style.backgroundColor = "#fff";
+        markerDiv.style.display = "flex";
+        markerDiv.style.alignItems = "center";
+        markerDiv.style.justifyContent = "center";
+        markerDiv.style.fontSize = "14px";
+        markerDiv.style.fontWeight = "bold";
+        markerDiv.style.color = "#333";
+        markerDiv.style.textAlign = "center";
+        markerDiv.style.boxShadow = "0 2px 6px rgba(0,0,0,0.3)";
 
+        // Get initials (first 2 letters of name)
+        const initials = name
+            .split(" ")
+            .map(word => word[0]?.toUpperCase() || "")
+            .join("")
+            .slice(0, 2);
+
+        markerDiv.innerText = initials;
+        return markerDiv;
+    }
+
+    // Load barber locations from Firestore
     function loadBarberLocations() {
         db.collection("barbers").get().then((querySnapshot) => {
+            barbers = [];
+            barberMarkers = [];
+            
+            let geocodePromises = [];
+
             querySnapshot.forEach((doc) => {
                 const barber = doc.data();
                 if (barber.address) {
-                    geocodeAddress(barber.address, barber.name);
+                    const barberObj = {
+                        id: doc.id,
+                        name: barber.name,
+                        address: barber.address,
+                        location: null,
+                        marker: null,
+                    };
+                    barbers.push(barberObj);
+
+                    geocodePromises.push(new Promise((resolve) => {
+                        const geocoder = new google.maps.Geocoder();
+                        geocoder.geocode({ address: barber.address }, (results, status) => {
+                            if (status === "OK") {
+                                const location = results[0].geometry.location;
+                                barberObj.location = location;
+
+                                const marker = new google.maps.marker.AdvancedMarkerElement({
+                                    map: map,
+                                    position: location,
+                                    title: barber.name,
+                                    content: createCircularMarkerFromName(barber.name)
+                                });
+
+                                const infoWindow = new google.maps.InfoWindow({
+                                    content: `
+                                        <div style="font-family: Arial, sans-serif; font-size: 14px; max-width: 220px; line-height: 1.4;">
+                                            <strong style="font-size: 16px; color: #333;">${barber.name}</strong><br>
+                                            <span style="color: #555;">${barber.address}</span><br><br>
+                                            <button
+                                                class="directions-btn"
+                                                onclick="getDirections(${location.lat()}, ${location.lng()})"
+                                                style="background-color: #4285F4; color: white; border: none; padding: 8px 14px; font-size: 14px; font-weight: 600; border-radius: 4px; cursor: pointer; box-shadow: 0 2px 6px rgba(66, 133, 244, 0.4); transition: background-color 0.3s ease; display: flex; align-items: center; gap: 6px;"
+                                                onmouseover="this.style.backgroundColor='#357ae8'"
+                                                onmouseout="this.style.backgroundColor='#4285F4'"
+                                            >
+                                                Get Directions
+                                            </button>
+                                        </div>`
+                                });
+
+                                marker.addListener("click", () => {
+                                    infoWindow.open(map, marker);
+                                });
+
+                                barberObj.marker = marker;
+                                barberMarkers.push(marker);
+                            } else {
+                                console.warn("Geocode failed for " + barber.address + " with status: " + status);
+                            }
+                            resolve();
+                        });
+                    }));
                 }
             });
+
+            Promise.all(geocodePromises).then(() => {
+                applyClustering();
+                setupBarberSearch();
+            });
+
         }).catch((error) => {
             console.error("Error fetching barbers:", error);
         });
     }
 
-    function geocodeAddress(address, barberName) {
-        const geocoder = new google.maps.Geocoder();
-        geocoder.geocode({ address: address }, (results, status) => {
-            if (status === "OK") {
-                const location = results[0].geometry.location;
-                // Create a simple marker icon 
-                const barberIcon = document.createElement("div");
-                barberIcon.innerHTML = `
-                <svg width="48" height="48" viewBox="0 0 24 24">
-                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" fill="#FF5722" stroke="#fff" stroke-width="2"/>
-                </svg>
-                `;
+    function setupBarberSearch() {
+        const input = document.getElementById("barber-search");
+        const resultsDiv = document.getElementById("barber-search-results");
 
-                const marker = new google.maps.marker.AdvancedMarkerElement({
-                    map: map,
-                    position: location,
-                    title: barberName || address,
-                    content: barberIcon,  // This shows the marker visually
+        input.addEventListener("input", () => {
+            const query = input.value.trim().toLowerCase();
+            resultsDiv.innerHTML = "";
+            if (!query) {
+                resultsDiv.style.display = "none";
+                return;
+            }
+
+            const filtered = barbers.filter(b => b.name.toLowerCase().includes(query));
+
+            if (filtered.length === 0) {
+                resultsDiv.innerHTML = "<div style='padding:8px; color:#666;'>No barbers found</div>";
+                resultsDiv.style.display = "block";
+                return;
+            }
+
+            filtered.forEach(barber => {
+                const div = document.createElement("div");
+                div.textContent = barber.name;
+
+                div.addEventListener("click", () => {
+                    if (barber.location) {
+                        map.setCenter(barber.location);
+                        map.setZoom(16);
+                        google.maps.event.trigger(barber.marker, "click");
+                    }
+
+                    resultsDiv.style.display = "none";
+                    resultsDiv.innerHTML = "";
+                    input.value = barber.name;
                 });
 
-                const infoWindow = new google.maps.InfoWindow({
-                    content: `
-                        <div>
-                            <strong>${barberName}</strong><br>
-                            ${address}<br>
-                            <button class="directions-btn" onclick="getDirections(${location.lat()}, ${location.lng()})">
-                                Get Directions
-                            </button>
-                        </div>
-                    `,
-                });
+                resultsDiv.appendChild(div);
+            });
 
-                marker.addListener("click", () => {
-                    infoWindow.open(map, marker);
-                });
+            resultsDiv.style.display = "block";
+        });
 
-                barberMarkers.push(marker);
-            } else {
-                console.warn("Geocode was not successful for address: " + address + " Status: " + status);
+        // Hide results when clicking outside
+        document.addEventListener("click", (e) => {
+            if (!resultsDiv.contains(e.target) && e.target !== input) {
+                resultsDiv.style.display = "none";
             }
         });
     }
@@ -395,7 +579,15 @@
         }
     }
 
+    function applyClustering() {
+        new markerClusterer.MarkerClusterer({ 
+            map, 
+            markers: barberMarkers 
+        });
+    }
+
     </script>
+    <script src="https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js"></script>
 
 </body>
 </html>
