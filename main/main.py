@@ -54,13 +54,24 @@ class BarberBot:
 
         # Create role selection keyboard
         keyboard = [
-            [KeyboardButton("👨‍🔧 Barber")],
-            [KeyboardButton("👤 Client")]
+            [KeyboardButton("💈 I'm a Barber")],
+            [KeyboardButton("👤 I'm a Client")]
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
 
+        welcome_message = (
+            "👋 <b>Welcome to AbsQueue!</b>\n\n"
+            "The easiest way to <i>book</i> or <i>offer</i> barber services.\n\n"
+            "<b>How it works:</b>\n"
+            "✅ <b>For Clients</b> – Find your favorite barber & book instantly.\n"
+            "✅ <b>For Barbers</b> – Manage bookings and grow your business.\n\n"
+            "💡 <i>Whether you're a barber or a client, we've got you covered.</i>\n\n"
+            "<b>Please choose your role to get started:</b>"
+        )
+
         await update.message.reply_text(
-            "Welcome to AbsQueue!💈 Please select your role:",
+            welcome_message,
+            parse_mode="HTML",
             reply_markup=reply_markup
         )
 
