@@ -33,7 +33,7 @@ class Keyboards:
         return [
             [InlineKeyboardButton("⭐ Favorites", callback_data="search_by_favorites")],
             [InlineKeyboardButton("🌍 Regions", callback_data="search_by_region")],
-            [InlineKeyboardButton("📍 See barbers near you", callback_data="search_by_location")],
+            [InlineKeyboardButton("📍 Barbers near me", callback_data="search_by_location")],
             [InlineKeyboardButton("🔍 Search by name", callback_data="search_by_name")],
             [InlineKeyboardButton("🗺 View Barbers on a Map", url=maps_url)]
         ]

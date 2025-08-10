@@ -24,7 +24,7 @@ async def client_menu(update: Update, context: CallbackContext) -> None:
 
     menu_text = "Please choose an option:"
     menu_buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton("📅 Schedule Appointment", callback_data="book_slots")],
+        [InlineKeyboardButton("📅 Book Appointment", callback_data="book_slots")],
         [InlineKeyboardButton("📖 My Bookings", callback_data="view_booked_slots")],
         # [InlineKeyboardButton("💈 Open Booking App", web_app={"url": "https://d31b-2406-3003-2002-ba-6c24-94a6-77ae-572d.ngrok-free.app/booking.html"})],
         [InlineKeyboardButton("📷 Our Instagram", url="https://www.instagram.com/absqueue/")],
