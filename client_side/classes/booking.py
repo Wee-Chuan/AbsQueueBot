@@ -505,6 +505,10 @@ class Booking:
                 user_info = booking_data["booked_by"]
                 start_time = booking_data["start time"]
                 end_time = booking_data["end time"]
+
+                if start_time < now:
+                    continue
+
                 barber_name = booking_data["barber_name"]
                 service_names = booking_data.get("service_name", [])
                 service_name = ', '.join(service_names) if isinstance(service_names, list) else service_names
@@ -512,7 +516,6 @@ class Booking:
 
                 # Get additional details
                 barber_ref = db.collection("barbers").where("name", "==", barber_name).stream()
-
                 barber_info = next(barber_ref, None)
 
                 if barber_info:
