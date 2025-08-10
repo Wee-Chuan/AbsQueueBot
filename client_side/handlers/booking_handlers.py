@@ -1034,13 +1034,12 @@ async def confirm_contact(update: Update, context: CallbackContext) -> int:
     barber_name = HelperUtils.get_user_data(context, "barber_name")
 
     # Get slot details
-    start_time, end_time = Booking.fetch_slot_details(slot_id, db)  # Fetch slot details
-    if not start_time or not end_time:
+    start_time = Booking.fetch_slot_details(slot_id, db)  # Fetch slot details
+    if not start_time:
         await update.message.reply_text("⚠️ Invalid slot selected. Please try again.")
         return SELECT_SERVICE
     
-    start_time_sgt = Booking.convert_to_sgt(start_time)  
-    end_time_sgt = Booking.convert_to_sgt(end_time)   
+    start_time_sgt = Booking.convert_to_sgt(start_time)   
 
     # Get service details
     total_service_price = 0.0
@@ -1063,7 +1062,7 @@ async def confirm_contact(update: Update, context: CallbackContext) -> int:
         f"📋 <b>Service(s):</b> {service_name_str}\n"
         f"💲 <b>Total Price:</b> ${total_service_price:.2f}\n\n"
         f"📅 <b>Date:</b> {start_time_sgt.strftime('%a %d/%m/%Y')}\n" 
-        f"🕛 <b>Time:</b> {start_time_sgt.strftime('%I:%M %p')} - {end_time_sgt.strftime('%I:%M %p')}\n\n" 
+        f"🕛 <b>Time:</b> {start_time_sgt.strftime('%I:%M %p')}\n\n" 
         "✅ Please confirm or cancel your booking."
     )
 
@@ -1097,7 +1096,7 @@ async def confirm_booking(update: Update, context: CallbackContext) -> int:
         barber_email = HelperUtils.get_user_data(context, "barber_email")   # Retrieve the selected barber's email
         barber_name = HelperUtils.get_user_data(context, "barber_name")     # Retrieve the selected barber's name
 
-        success, message, start_time, end_time, service_name_str = Booking.create_booking(
+        success, message, start_time, service_name_str = Booking.create_booking(
             slot_id, service_ids, user_id, user_name, phone_number, barber_email, barber_name, db)
 
         # Delete stored messages
@@ -1131,7 +1130,6 @@ async def confirm_booking(update: Update, context: CallbackContext) -> int:
                     if barber_telegram_id:
                         # Get slot details for notification
                         start_time_sgt = Booking.convert_to_sgt(start_time)
-                        end_time_sgt = Booking.convert_to_sgt(end_time)
 
                         # Sanitize variables before sending message
                         if isinstance(user_name, set):
@@ -1150,7 +1148,7 @@ async def confirm_booking(update: Update, context: CallbackContext) -> int:
                                 f"👤 <b>Customer:</b> {user_name}\n"
                                 f"📞 <b>Phone:</b> {phone_number}\n"
                                 f"📋 <b>Services:</b> {service_name_str}\n"
-                                f"🕛 <b>Time:</b> {start_time_sgt.strftime('%I:%M %p')} - {end_time_sgt.strftime('%I:%M %p')}\n"
+                                f"🕛 <b>Time:</b> {start_time_sgt.strftime('%I:%M %p')}\n"
                                 f"📅 <b>Date:</b> {start_time_sgt.strftime('%a %d/%m/%Y')}"
                             ),
                             parse_mode="HTML"

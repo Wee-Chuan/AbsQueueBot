@@ -14,7 +14,7 @@ class Booking:
     """barber_id is the barber who will be serving the client"""
     
     def __init__(self, booking_id, customer_id, username, barber_email, barber_name, 
-                 phone_number, start_time, end_time, service_id, service_name, service_price, completed=False, no_show=False):
+                 phone_number, start_time, service_id, service_name, service_price, completed=False, no_show=False):
         self.booking_id = booking_id
         self.customer_id = customer_id
         self.username = username
@@ -22,7 +22,6 @@ class Booking:
         self.barber_name = barber_name
         self.phone_number = phone_number
         self.start_time = start_time
-        self.end_time = end_time
         self.service_id = service_id
         self.service_name = service_name
         self.service_price = service_price
@@ -46,7 +45,6 @@ class Booking:
                 "barber_email": self.barber_email,
                 "barber_name": self.barber_name,
                 "start time": self.start_time,
-                "end time": self.end_time,
                 "service_id": self.service_id,
                 "service_name": self.service_name,
                 "service_price": service_price,
@@ -86,9 +84,9 @@ class Booking:
         """Fetch the slot details (start and end time) from Firestore."""
         slot_doc = db.collection("open slots").document(slot_id).get()
         if not slot_doc.exists:
-            return None, None
+            return None
         slot_data = slot_doc.to_dict()
-        return slot_data["start time"], slot_data["end time"]
+        return slot_data["start time"]
 
     @staticmethod
     def get_barber_name(barber_email: str, db: firestore.Client):
@@ -228,7 +226,7 @@ class Booking:
             service_name_str = ', '.join(service_names)
 
             # Fetch the selected slot start and end time from Firestore
-            start_time, end_time = Booking.fetch_slot_details(slot_id, db)
+            start_time = Booking.fetch_slot_details(slot_id, db)
             if not start_time:
                 return False, "This slot no longer exists."
 
@@ -242,7 +240,6 @@ class Booking:
                 barber_name=barber_name,
                 phone_number=phone_number,
                 start_time=start_time,
-                end_time=end_time,
                 service_id=service_ids,
                 service_name=service_names,
                 service_price=total_service_price
@@ -256,7 +253,6 @@ class Booking:
 
                 # Convert Firestore stored UTC time to Singapore Time before storing in booked slots
                 start_time_sgt = Booking.convert_to_sgt(start_time)
-                end_time_sgt = Booking.convert_to_sgt(end_time)
 
                 message = (
                     f"✅ Slot booked successfully!\n\n" 
@@ -264,14 +260,14 @@ class Booking:
                     f"📋 <b>Service(s):</b> {service_name_str}\n" 
                     f"💲 <b>Total Price:</b> ${total_service_price:.2f}\n\n" 
                     f"📅 <b>Date:</b> {start_time_sgt.strftime('%a %d/%m/%Y')}\n" 
-                    f"🕛 <b>Time:</b> {start_time_sgt.strftime('%I:%M %p')} - {end_time_sgt.strftime('%I:%M %p')}\n\n" 
+                    f"🕛 <b>Time:</b> {start_time_sgt.strftime('%I:%M %p')}\n\n" 
                     f"Thank you, {user_name}! You can view your bookings back at /client_menu"
                 )
 
-                return True, message, start_time, end_time, service_name_str
+                return True, message, start_time, service_name_str
                             
             else:
-                return False, "Failed to book the slot. Please try again later.", None, None, None
+                return False, "Failed to book the slot. Please try again later.", None, None
 
         except Exception as e:
             print(f"Error creating booking: {e}")
@@ -291,7 +287,6 @@ class Booking:
                 booking_data = booking.to_dict()
                 user_info = booking_data["booked_by"]
                 start_time = booking_data["start time"]
-                end_time = booking_data["end time"]
                 barber_email = booking_data["barber_email"]
                 barber_name = booking_data["barber_name"]
                 service_names = booking_data.get("service_name", [])
@@ -313,7 +308,6 @@ class Booking:
 
                 # Convert times from UTC to Singapore Time
                 start_time_sgt = Booking.convert_to_sgt(start_time)
-                end_time_sgt = Booking.convert_to_sgt(end_time)
 
                 # Store the formatted slot details in the list
                 booked_slots.append(
@@ -326,7 +320,7 @@ class Booking:
                         f"🌍 <b>Region:</b> {barber_region}\n\n"
                         f"📋 <b>Services:</b> {service_name}\n"
                         f"💲 <b>Total Price:</b> ${service_price}\n"  
-                        f"🕛 <b>Total duration:</b> {start_time_sgt.strftime('%I:%M %p')} - {end_time_sgt.strftime('%I:%M %p')}" 
+                        f"🕛 <b>Total duration:</b> {start_time_sgt.strftime('%I:%M %p')}" 
                     )
                 )
 
@@ -348,7 +342,6 @@ class Booking:
             
             booked_slot_data = booked_slot_ref.to_dict()
             start_time = booked_slot_data['start time']
-            end_time = booked_slot_data['end time']
             barber_email = booked_slot_data["barber_email"]
             
             # Ensure that the user is the one who made the booking (extra checks)
@@ -361,7 +354,6 @@ class Booking:
             # Re-add the slot back to "open slots"
             db.collection("open slots").document(booking_id).set({
                 "start time": start_time,
-                "end time": end_time,
                 "barber_email": barber_email,
             })
 
@@ -386,7 +378,6 @@ class Booking:
                 booking_data = booking.to_dict()
                 user_info = booking_data["booked_by"]
                 start_time = booking_data["start time"]
-                end_time = booking_data["end time"]
                 barber_email = booking_data["barber_email"]
                 barber_name = booking_data["barber_name"]
                 service_names = booking_data.get("service_name", [])
@@ -408,7 +399,6 @@ class Booking:
 
                 # Convert times from UTC to Singapore Time
                 start_time_sgt = Booking.convert_to_sgt(start_time)
-                end_time_sgt = Booking.convert_to_sgt(end_time)
 
                 # Store the formatted slot details in the list
                 completed_bookings.append(
@@ -421,7 +411,7 @@ class Booking:
                         f"🌍{barber_region}\n\n"
                         f"📋{service_name}\n"
                         f"💲${service_price}\n"  
-                        f"⏰{start_time_sgt.strftime('%I:%M %p')} - {end_time_sgt.strftime('%I:%M %p')}",
+                        f"⏰{start_time_sgt.strftime('%I:%M %p')}",
                         rating,
                         review
                     )
@@ -447,7 +437,6 @@ class Booking:
                 booking_data = booking.to_dict()
                 user_info = booking_data["booked_by"]
                 start_time = booking_data["start time"]
-                end_time = booking_data["end time"]
                 barber_email = booking_data["barber_email"]
                 barber_name = booking_data["barber_name"]
                 service_names = booking_data.get("service_name", [])
@@ -467,7 +456,6 @@ class Booking:
 
                 # Convert times from UTC to Singapore Time
                 start_time_sgt = Booking.convert_to_sgt(start_time)
-                end_time_sgt = Booking.convert_to_sgt(end_time)
 
                 # Store the formatted slot details in the list
                 no_show_bookings.append(
@@ -490,7 +478,7 @@ class Booking:
     def get_upcoming_bookings(customer_id: str, db: firestore.Client):
         """Fetch the upcoming booking for the given customer."""
         try:
-            now = datetime.now()
+            now = datetime.now(timezone)
 
             booked_slots_ref = db.collection("booked slots")\
                 .where("booked_by.customer_id", "==", customer_id)\
@@ -504,7 +492,6 @@ class Booking:
                 booking_data = booking.to_dict()
                 user_info = booking_data["booked_by"]
                 start_time = booking_data["start time"]
-                end_time = booking_data["end time"]
 
                 if start_time < now:
                     continue
@@ -526,7 +513,6 @@ class Booking:
 
                 # Convert times from UTC to Singapore Time
                 start_time_sgt = Booking.convert_to_sgt(start_time)
-                end_time_sgt = Booking.convert_to_sgt(end_time)
 
                 # Store the formatted slot details in the list
                 upcoming_bookings.append(
@@ -539,14 +525,14 @@ class Booking:
                         f"🌍{barber_region}\n\n"
                         f"📋{service_name}\n"
                         f"💲${service_price}\n"  
-                        f"🕛{start_time_sgt.strftime('%I:%M %p')} - {end_time_sgt.strftime('%I:%M %p')}" 
+                        f"🕛{start_time_sgt.strftime('%I:%M %p')}" 
                     )
                 )
 
             return upcoming_bookings
         except Exception as e:
             print(f"Error retrieving booked slots: {e}")
-            return None
+            return []
     
     @staticmethod
     def save_rating(booking_id: str, rating: int, reviewer_name: str, db: firestore.Client):
