@@ -281,7 +281,7 @@ def generate_appointment_keyboard(appointments, prefix, page=0, per_page=5):
     return InlineKeyboardMarkup(kb)
 
 async def handle_completed_appointments(update: Update, context: CallbackContext):
-    query = update.callback_query; await query.answer(); #await cleanup_chat_flow(update, context)
+    query = update.callback_query; await query.answer(); 
     email = context.user_data.get('current_user').email
     docs = list(db.collection('booked slots').where('barber_email','==',email).where('completed','==',True).stream())
     if docs:

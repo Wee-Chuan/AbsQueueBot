@@ -102,12 +102,12 @@ def build_calendar(year, month):
 # helper function to generate time slots with 30-minute intervals
 def generate_time_slots(date: datetime.datetime):
     time_slots = []
-    start_time = datetime.datetime(date.year, date.month, date.day, 9, 0)  # Start at 9:00 AM
+    start_time = datetime.datetime(date.year, date.month, date.day, 0, 0)  # Start at 9:00 AM
     start_time = timezone.localize(start_time)
-    for _ in range(16):  # Generate 16 slots (9 AM to 5 PM)
-        end_time = start_time + timedelta(minutes=30)
+    for _ in range(26):  
+        end_time = start_time + timedelta(minutes=50)
         time_slots.append((start_time, end_time))
-        start_time = end_time  # Move to the next slot
+        start_time = end_time + timedelta(minutes=10) # Move to the next slot
     return time_slots
 
 # handle the date chosen by user + displays the next timeslots
@@ -207,9 +207,18 @@ async def handle_calendar_selection(update: Update, context: CallbackContext) ->
     keyboard = []
     openable_slots_present_flag = False # to determine whether open slots button exists
     closable_slots_present_flag = False
+    
+    counter = 1
+    slots_line = []
     for start_time, end_time in time_slots:
+        if counter > 2:
+            keyboard.append(slots_line)
+            slots_line = []
+            counter = 1
+        
         slot_str = start_time.strftime('%Y-%m-%d %H:%M')
-        label = f"{start_time.strftime('%I:%M %p')} - {end_time.strftime('%I:%M %p')}"
+        # label = f"{start_time.strftime('%I:%M %p')} - {end_time.strftime('%I:%M %p')}"
+        label = f"{start_time.strftime('%I:%M %p')}" # no longer show end times (not necessary)
         
         # flags
         expired_slot_flag = False
@@ -235,7 +244,8 @@ async def handle_calendar_selection(update: Update, context: CallbackContext) ->
             button = InlineKeyboardButton("💤 " + label, callback_data=cb_data)  # Actionable for blocked slots
             openable_slots_present_flag = True
         if expired_slot_flag == False:
-            keyboard.append([button])
+            slots_line.append(button)
+        counter+=1
 
     if len(keyboard) == 0:
         keyboard.append([InlineKeyboardButton("No appointments to show!", callback_data="none")])
@@ -495,9 +505,17 @@ async def manage_time_slot_actions(update: Update, context: CallbackContext) -> 
     buttons = []
     now = datetime.datetime.now(timezone)
 
+    counter = 1
+    slots_line = []
     for start, end in time_slots:
+        
+        if counter > 2:
+            buttons.append(slots_line)
+            slots_line = []
+            counter = 1
+        
         key    = start.strftime('%Y-%m-%d %H:%M')
-        label  = f"{start.strftime('%I:%M %p')} - {end.strftime('%I:%M %p')}"
+        label  = f"{start.strftime('%I:%M %p')}"
         status = statuses.get(key, None)
         cb     = "noop"
         expired = False
@@ -528,7 +546,8 @@ async def manage_time_slot_actions(update: Update, context: CallbackContext) -> 
             # cb remains toggle_ or open_ so user can un-toggle
 
         if expired == False:
-            buttons.append([InlineKeyboardButton(label, callback_data=cb)])
+            slots_line.append(InlineKeyboardButton(label, callback_data=cb))
+            counter += 1
 
     # Back button
     buttons.append([InlineKeyboardButton("🔙 Back", callback_data="back_to_calendar")])
@@ -596,12 +615,12 @@ async def notify_followers(update: Update, context: CallbackContext) -> int:
     await handle_calendar_selection(update, context)
 ## 3 END
 
-# nooops (i shd change the name of this lol its not noops anymore)
 # handlers to ignore unclickable slots
 async def noop(update: Update, context: CallbackContext) -> None:
     query = update.callback_query
     await query.answer(text="This slot is open for booking.", show_alert=True)
 
+# shows booked details
 async def noop_booked(update: Update, context: CallbackContext) -> None:
     callback_query = update.callback_query
     callback_data = callback_query.data  # e.g., "booked_2025-04-10 13:00" or "noshow_2025-04-10 13:00"
@@ -625,7 +644,9 @@ async def noop_booked(update: Update, context: CallbackContext) -> None:
     # Firestore query
     collection_ref = db.collection('booked slots')
     firestore_query = collection_ref.where("barber_email", "==", email).where("`start time`", "==", slot_datetime)
-
+    print(f"{email}, {slot_datetime}")
+    
+    
     # Debug: print the query before executing
     print(f"Firestore query: {firestore_query}")
 
