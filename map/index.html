@@ -162,7 +162,6 @@
             fullscreenControl: true,
             mapTypeControl: false,    
             streetViewControl: false,
-            // Enable "My Location" button (geolocation)
             geolocationControl: true,
             mapId: "80a3e6a5d1b30a3652dce37a"
         });
@@ -218,8 +217,6 @@
                     if (radius <= 40) growing = true;
                 }
                 haloCircle.setRadius(radius);
-                // Also fade opacity for nice effect if you want, e.g.,
-                // haloCircle.setOptions({ fillOpacity: 0.3 * (50 - radius) / 10 });
                 }, 80);
 
             }, (error) => {
@@ -402,7 +399,9 @@
             barbers = [];
             barberMarkers = [];
             
-            let geocodePromises = [];
+            let barberDataPromises = [];
+            const infoWindow = new google.maps.InfoWindow();
+            let lastOpenedMarker = null;
 
             querySnapshot.forEach((doc) => {
                 const barber = doc.data();
@@ -413,56 +412,94 @@
                         address: barber.address,
                         location: null,
                         marker: null,
+                        rating: "Loading...",
                     };
                     barbers.push(barberObj);
 
-                    geocodePromises.push(new Promise((resolve) => {
-                        const geocoder = new google.maps.Geocoder();
-                        geocoder.geocode({ address: barber.address }, (results, status) => {
-                            if (status === "OK") {
-                                const location = results[0].geometry.location;
-                                barberObj.location = location;
-
-                                const marker = new google.maps.marker.AdvancedMarkerElement({
-                                    map: map,
-                                    position: location,
-                                    title: barber.name,
-                                    content: createCircularMarkerFromName(barber.name)
+                    // Fetch ratings from subcollection
+                    let ratingPromise = db.collection("barbers")
+                        .doc(doc.id)
+                        .collection("ratings and reviews")
+                        .get()
+                        .then((ratingsSnapshot) => {
+                            if (!ratingsSnapshot.empty) {
+                                let total = 0;
+                                let count = 0;
+                                ratingsSnapshot.forEach((ratingDoc) => {
+                                    const ratingVal = ratingDoc.data().rating;
+                                    if (typeof ratingVal === "number") {
+                                        total += ratingVal;
+                                        count++;
+                                    }
                                 });
-
-                                const infoWindow = new google.maps.InfoWindow({
-                                    content: `
-                                        <div style="font-family: Arial, sans-serif; font-size: 14px; max-width: 220px; line-height: 1.4;">
-                                            <strong style="font-size: 16px; color: #333;">${barber.name}</strong><br>
-                                            <span style="color: #555;">${barber.address}</span><br><br>
-                                            <button
-                                                class="directions-btn"
-                                                onclick="getDirections(${location.lat()}, ${location.lng()})"
-                                                style="background-color: #4285F4; color: white; border: none; padding: 8px 14px; font-size: 14px; font-weight: 600; border-radius: 4px; cursor: pointer; box-shadow: 0 2px 6px rgba(66, 133, 244, 0.4); transition: background-color 0.3s ease; display: flex; align-items: center; gap: 6px;"
-                                                onmouseover="this.style.backgroundColor='#357ae8'"
-                                                onmouseout="this.style.backgroundColor='#4285F4'"
-                                            >
-                                                Get Directions
-                                            </button>
-                                        </div>`
-                                });
-
-                                marker.addListener("click", () => {
-                                    infoWindow.open(map, marker);
-                                });
-
-                                barberObj.marker = marker;
-                                barberMarkers.push(marker);
+                                barberObj.rating = count > 0 ? (total / count).toFixed(1) : "N/A";
                             } else {
-                                console.warn("Geocode failed for " + barber.address + " with status: " + status);
+                                barberObj.rating = "N/A";
                             }
-                            resolve();
+                        })
+                        .catch((error) => {
+                            console.error("Error fetching ratings for barber " + barber.name + ": ", error);
+                            barberObj.rating = "N/A";
                         });
-                    }));
+
+                    // After ratings fetched, geocode the address and create marker
+                    let geocodePromise = ratingPromise.then(() => {
+                        return new Promise((resolve) => {
+                            const geocoder = new google.maps.Geocoder();
+                            geocoder.geocode({ address: barber.address }, (results, status) => {
+                                if (status === "OK") {
+                                    const location = results[0].geometry.location;
+                                    barberObj.location = location;
+
+                                    const marker = new google.maps.marker.AdvancedMarkerElement({
+                                        map: map,
+                                        position: location,
+                                        title: barber.name,
+                                        content: createCircularMarkerFromName(barber.name)
+                                    });
+
+                                    // Marker click toggle behavior
+                                    marker.addListener("click", () => {
+                                        if (lastOpenedMarker === marker && infoWindow.getMap()) {
+                                            infoWindow.close();
+                                            lastOpenedMarker = null;
+                                        } else {
+                                            infoWindow.setContent(`
+                                                <div style="font-family: Arial, sans-serif; font-size: 14px; max-width: 220px; line-height: 1.4;">
+                                                    <strong style="font-size: 18px; font-weight: 600; color: #333;">${barber.name}</strong><br>
+                                                    ⭐<strong>${barberObj.rating}</strong><br>
+                                                    <span style="color: #555;">${barber.address}</span><br><br>
+                                                    <button
+                                                        class="directions-btn"
+                                                        onclick="getDirections(${location.lat()}, ${location.lng()})"
+                                                        style="background-color: #4285F4; color: white; border: none; padding: 8px 14px; font-size: 14px; font-weight: 600; border-radius: 4px; cursor: pointer; box-shadow: 0 2px 6px rgba(66, 133, 244, 0.4); transition: background-color 0.3s ease; display: flex; align-items: center; gap: 6px;"
+                                                        onmouseover="this.style.backgroundColor='#357ae8'"
+                                                        onmouseout="this.style.backgroundColor='#4285F4'"
+                                                    >
+                                                        Get Directions
+                                                    </button>
+                                                </div>
+                                            `);
+                                            infoWindow.open(map, marker);
+                                            lastOpenedMarker = marker;
+                                        }
+                                    });
+
+                                    barberObj.marker = marker;
+                                    barberMarkers.push(marker);
+                                } else {
+                                    console.warn("Geocode failed for " + barber.address + " with status: " + status);
+                                }
+                                resolve();
+                            });
+                        });
+                    });
+
+                    barberDataPromises.push(geocodePromise);
                 }
             });
 
-            Promise.all(geocodePromises).then(() => {
+            Promise.all(barberDataPromises).then(() => {
                 applyClustering();
                 setupBarberSearch();
             });
@@ -582,7 +619,7 @@
     function applyClustering() {
         new markerClusterer.MarkerClusterer({ 
             map, 
-            markers: barberMarkers 
+            markers: barberMarkers, 
         });
     }
 
