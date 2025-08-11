@@ -79,15 +79,16 @@ class Keyboards:
                 btn_text += f" ({barber_info['distance_km']}km)"
             
             # Add rating if available
-            rating = barber_info.get('avg_rating', None)
-            if rating is not None:
-                try:
-                    rating = float(rating)
-                    btn_text += f" (⭐ {rating:.1f})"
-                except ValueError:
+            if search_type == "rating" or 'avg_rating' in barber_info:
+                rating = barber_info.get('avg_rating', None)
+                if rating is not None:
+                    try:
+                        rating = float(rating)
+                        btn_text += f" (⭐ {rating:.1f})"
+                    except ValueError:
+                        btn_text += " (⭐ N/A)"
+                else:
                     btn_text += " (⭐ N/A)"
-            else:
-                btn_text += " (⭐ N/A)"
 
             keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"barber_{doc_id}")])
 

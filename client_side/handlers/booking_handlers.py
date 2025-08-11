@@ -113,7 +113,6 @@ async def top_rated(update: Update, context: CallbackContext) -> int:
 
     try:
         all_barbers = HelperUtils.get_user_data(context, "all_barbers")
-        print(f"All barbers: {all_barbers}")
         if not all_barbers:
             all_barbers = Customer.get_all_barbers(db)
             HelperUtils.set_user_data(context, "all_barbers", all_barbers)
