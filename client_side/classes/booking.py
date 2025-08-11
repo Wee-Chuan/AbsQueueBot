@@ -13,13 +13,14 @@ class Booking:
     """client_id is the client who made the booking"""
     """barber_id is the barber who will be serving the client"""
     
-    def __init__(self, booking_id, customer_id, username, barber_email, barber_name, 
+    def __init__(self, booking_id, customer_id, username, barber_email, barber_name, barber_id, 
                  phone_number, start_time, service_id, service_name, service_price, completed=False, no_show=False):
         self.booking_id = booking_id
         self.customer_id = customer_id
         self.username = username
         self.barber_email = barber_email
         self.barber_name = barber_name
+        self.barber_id = barber_id  
         self.phone_number = phone_number
         self.start_time = start_time
         self.service_id = service_id
@@ -44,6 +45,7 @@ class Booking:
                 },
                 "barber_email": self.barber_email,
                 "barber_name": self.barber_name,
+                "barber_id": self.barber_id,
                 "start time": self.start_time,
                 "service_id": self.service_id,
                 "service_name": self.service_name,
@@ -136,9 +138,9 @@ class Booking:
         return services
 
     @staticmethod
-    def get_available_slots(barber_email: str, db: firestore.Client):
+    def get_available_slots(barber_id: str, db: firestore.Client):
         """Fetch all available slots for the selected barber."""
-        slots_ref = db.collection('open slots').where("barber_email", "==", barber_email).stream()
+        slots_ref = db.collection('open slots').where("barber_id", "==", barber_id).stream()
         slots = []
         current_time = datetime.now(timezone)  # Get the current time in Singapore Time
 
@@ -207,7 +209,7 @@ class Booking:
     
     # Function to create a new booking
     @staticmethod
-    def create_booking(slot_id, service_ids, user_id, user_name, phone_number, barber_email, barber_name, db: firestore.Client):
+    def create_booking(slot_id, service_ids, user_id, user_name, phone_number, barber_email, barber_name, barber_id, db: firestore.Client):
         """Create a new booking and push it to Firestore"""
         try:
             # Fetch the selected service names and prices from Firestore"
@@ -238,6 +240,7 @@ class Booking:
                 username=user_name,
                 barber_email=barber_email,
                 barber_name=barber_name,
+                barber_id = barber_id,
                 phone_number=phone_number,
                 start_time=start_time,
                 service_id=service_ids,
@@ -376,26 +379,29 @@ class Booking:
 
             for booking in booked_slots_ref:
                 booking_data = booking.to_dict()
-                user_info = booking_data["booked_by"]
                 start_time = booking_data["start time"]
-                barber_email = booking_data["barber_email"]
-                barber_name = booking_data["barber_name"]
+
+                # Get barber info by UUID
+                barber_id = booking_data.get("barber_id")
+                barber_address = "No address available"
+                barber_postal = "No postal code available"
+                barber_region = "No region available"
+                barber_name = "Unknown Barber"
+
+                if barber_id:
+                    barber_doc = db.collection("barbers").document(barber_id).get()
+                    if barber_doc.exists:
+                        barber_info = barber_doc.to_dict()
+                        barber_name = barber_info.get("name", barber_name)
+                        barber_address = barber_info.get("address", barber_address)
+                        barber_postal = barber_info.get("postal code", barber_postal)
+                        barber_region = barber_info.get("region", barber_region)
+
                 service_names = booking_data.get("service_name", [])
                 service_name = ', '.join(service_names) if isinstance(service_names, list) else service_names
                 service_price = booking_data["service_price"]
                 rating = booking_data.get("rating", "No rating yet")
                 review = booking_data.get("review", "No review yet")
-
-                # Get additional details
-                barber_ref = db.collection("barbers").where("name", "==", barber_name).stream()
-
-                barber_info = next(barber_ref, None)
-
-                if barber_info:
-                    barber_info = barber_info.to_dict()
-                    barber_address = barber_info.get("address", "No address available")
-                    barber_postal = barber_info.get("postal code", "No postal code available")
-                    barber_region = barber_info.get("region", "No region available")
 
                 # Convert times from UTC to Singapore Time
                 start_time_sgt = Booking.convert_to_sgt(start_time)
@@ -435,24 +441,26 @@ class Booking:
 
             for booking in booked_slots_ref:
                 booking_data = booking.to_dict()
-                user_info = booking_data["booked_by"]
                 start_time = booking_data["start time"]
-                barber_email = booking_data["barber_email"]
-                barber_name = booking_data["barber_name"]
+
+                # Get barber info by UUID
+                barber_id = booking_data.get("barber_id")
+                barber_address = "No address available"
+                barber_postal = "No postal code available"
+                barber_region = "No region available"
+                barber_name = "Unknown Barber"
+
+                if barber_id:
+                    barber_doc = db.collection("barbers").document(barber_id).get()
+                    if barber_doc.exists:
+                        barber_info = barber_doc.to_dict()
+                        barber_name = barber_info.get("name", barber_name)
+                        barber_address = barber_info.get("address", barber_address)
+                        barber_postal = barber_info.get("postal code", barber_postal)
+                        barber_region = barber_info.get("region", barber_region)
+
                 service_names = booking_data.get("service_name", [])
                 service_name = ', '.join(service_names) if isinstance(service_names, list) else service_names
-                service_price = booking_data["service_price"]
-
-                # Get additional details
-                barber_ref = db.collection("barbers").where("name", "==", barber_name).stream()
-
-                barber_info = next(barber_ref, None)
-
-                if barber_info:
-                    barber_info = barber_info.to_dict()
-                    barber_address = barber_info.get("address", "No address available")
-                    barber_postal = barber_info.get("postal code", "No postal code available")
-                    barber_region = barber_info.get("region", "No region available")
 
                 # Convert times from UTC to Singapore Time
                 start_time_sgt = Booking.convert_to_sgt(start_time)
@@ -496,20 +504,25 @@ class Booking:
                 if start_time < now:
                     continue
 
-                barber_name = booking_data["barber_name"]
+                # Get barber info by UUID 
+                barber_id = booking_data.get("barber_id")
+                barber_address = "No address available"
+                barber_postal = "No postal code available"
+                barber_region = "No region available"
+                barber_name = "Unknown Barber"
+
+                if barber_id:
+                    barber_doc = db.collection("barbers").document(barber_id).get()
+                    if barber_doc.exists:
+                        barber_info = barber_doc.to_dict()
+                        barber_name = barber_info.get("name", barber_name)
+                        barber_address = barber_info.get("address", barber_address)
+                        barber_postal = barber_info.get("postal code", barber_postal)
+                        barber_region = barber_info.get("region", barber_region)
+
                 service_names = booking_data.get("service_name", [])
                 service_name = ', '.join(service_names) if isinstance(service_names, list) else service_names
                 service_price = booking_data["service_price"]
-
-                # Get additional details
-                barber_ref = db.collection("barbers").where("name", "==", barber_name).stream()
-                barber_info = next(barber_ref, None)
-
-                if barber_info:
-                    barber_info = barber_info.to_dict()
-                    barber_address = barber_info.get("address", "No address available")
-                    barber_postal = barber_info.get("postal code", "No postal code available")
-                    barber_region = barber_info.get("region", "No region available")
 
                 # Convert times from UTC to Singapore Time
                 start_time_sgt = Booking.convert_to_sgt(start_time)
@@ -544,18 +557,16 @@ class Booking:
             })
             print(f"Rating {rating} saved successfully for booking {booking_id}.")
 
-            # Fetch barber name for this booking
+            # Fetch barber ID for this booking
             booking_doc = db.collection("booked slots").document(booking_id).get()
-            barber_name = None
-            if booking_doc.exists:
-                barber_name = booking_doc.to_dict().get("barber_name")
+            if not booking_doc.exists:
+                return False, "Booking not found."
 
-            # Get the barber's document ID using the barber name
-            barber_query = db.collection("barbers").where("name", "==", barber_name).limit(1).get()
-            if not barber_query:
-                return False, f"Barber '{barber_name}' not found."
+            booking_data = booking_doc.to_dict()
+            barber_id = booking_data.get("barber_id")
 
-            barber_id = barber_query[0].id
+            if not barber_id:
+                return False, "Barber ID not found for this booking."
             
             # Save rating in ratings and reviews collection
             db.collection("barbers").document(barber_id).collection("ratings and reviews").document(booking_id).set({
@@ -580,18 +591,16 @@ class Booking:
             })
             print(f"Review saved successfully for booking {booking_id}.")
 
-            # Fetch barber name for this booking
+            # Fetch barber ID for this booking
             booking_doc = db.collection("booked slots").document(booking_id).get()
-            barber_name = None
-            if booking_doc.exists:
-                barber_name = booking_doc.to_dict().get("barber_name", "Unknown Barber")
+            if not booking_doc.exists:
+                return False, "Booking not found."
 
-            # Get the barber's document ID using the barber name
-            barber_query = db.collection("barbers").where("name", "==", barber_name).limit(1).get()
-            if not barber_query:
-                return False, f"Barber '{barber_name}' not found."
+            booking_data = booking_doc.to_dict()
+            barber_id = booking_data.get("barber_id")
 
-            barber_id = barber_query[0].id
+            if not barber_id:
+                return False, "Barber ID not found for this booking."
 
             # Save review in ratings and reviews collection
             db.collection("barbers").document(barber_id).collection("ratings and reviews").document(booking_id).set({

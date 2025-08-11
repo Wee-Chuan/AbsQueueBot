@@ -846,15 +846,17 @@ async def select_slot(update: Update, context: CallbackContext, page: int=0) -> 
         error_message = Messages.error_message("barber_not_found")
         await query.edit_message_text(error_message)
         return ConversationHandler.END
-    
-    barber_email = barber_info["email"]                                 # Retrieve the selected barber's email
-    HelperUtils.set_user_data(context, "barber_email", barber_email)    # Store the selected barber's email
+
+    barber_id = HelperUtils.get_user_data(context, "barber_doc_id")  # Get barber's document ID
+    if not barber_id:
+        await query.answer("Barber UUID is missing. Please try again.", show_alert=True)
+        return ConversationHandler.END
 
     try:
         # Fetch available slots for the selected barber
         all_slots = HelperUtils.get_user_data(context, "available_slots")
         if not all_slots:
-            all_slots = Booking.get_available_slots(barber_email, db)
+            all_slots = Booking.get_available_slots(barber_id, db)
             HelperUtils.set_user_data(context, "available_slots", all_slots)
         print(f"All slots: {all_slots}")
 
@@ -1095,9 +1097,10 @@ async def confirm_booking(update: Update, context: CallbackContext) -> int:
         phone_number = HelperUtils.get_user_data(context, "phone_number")   # Retrieve the user's phone number
         barber_email = HelperUtils.get_user_data(context, "barber_email")   # Retrieve the selected barber's email
         barber_name = HelperUtils.get_user_data(context, "barber_name")     # Retrieve the selected barber's name
+        barber_id = HelperUtils.get_user_data(context, "barber_doc_id")  # Retrieve the barber's document ID
 
         success, message, start_time, service_name_str = Booking.create_booking(
-            slot_id, service_ids, user_id, user_name, phone_number, barber_email, barber_name, db)
+            slot_id, service_ids, user_id, user_name, phone_number, barber_email, barber_name, barber_id, db)
 
         # Delete stored messages
         if "message_ids" in context.user_data:
