@@ -206,6 +206,7 @@ class Customer:
         # Update or create the barber's document with their name
         barber_follower_ref.set({
             'name': barber_name,
+            'barber_id': barber_id,
         }, merge=True)
 
         # Create the user's follow document in the subcollection
