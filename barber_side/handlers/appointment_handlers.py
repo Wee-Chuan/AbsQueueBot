@@ -107,14 +107,13 @@ async def handle_single_appointment(update: Update, context: CallbackContext) ->
         return
 
     data = doc.to_dict()
-    print("all good here")
     # pull out fields
-    barber_email   = data.get("barber_email", "Unknown")
-    barber_name    = data.get("barber_name", "Unknown")
+    # barber_email   = data.get("barber_email", "Unknown")
+    # barber_name    = data.get("barber_name", "Unknown")
     service_name   = data.get("service_name", "Unknown")
     service_price  = data.get("service_price", "N/A")
     start_time_utc = data.get("start time")    # Firestore timestamp
-    end_time_utc   = data.get("end time")
+    # end_time_utc   = data.get("end time")
 
     booked_by = data.get("booked_by", {})
     customer_id   = booked_by.get("customer_id", "")
@@ -131,25 +130,22 @@ async def handle_single_appointment(update: Update, context: CallbackContext) ->
         return dt_obj.astimezone(ZoneInfo("Asia/Singapore"))
 
     start_sg = to_sg(start_time_utc)
-    end_sg   = to_sg(end_time_utc)
+    # end_sg   = to_sg(end_time_utc)
 
     start_str = start_sg.strftime("%B %d, %Y at %I:%M %p") if start_sg else "N/A"
-    end_str   = end_sg.strftime("%B %d, %Y at %I:%M %p")   if end_sg   else "N/A"
+    # end_str   = end_sg.strftime("%B %d, %Y at %I:%M %p")   if end_sg   else "N/A"
 
     status_line = ("❌ NO SHOW\n" if prefix == "NOSHOW" else "✅ COMPLETED\n" if prefix == "COMPLETED" else "UPCOMING")
-    print("good 2")
     # build the message
     message = f"""
 {status_line}✨ Service Details:
 🔧 Service: {service_name} — ${service_price}
 ⏰ Start Time: {start_str}
-End Time: {end_str}
 
 👤 Customer Info:
 📝 Username: {username}
 📞 Phone: {phone_number}
     """
-
     back_cb = ""
     if prefix == "COMPLETED":
         back_cb = "completed"
@@ -157,7 +153,6 @@ End Time: {end_str}
         back_cb = "no_show"
     else:
         back_cb = "upcoming"
-    print("good 3")
     # inline keyboard: Contact Client + Back
     url = f"tg://user?id={customer_id}"
     keyboard = [
@@ -165,10 +160,8 @@ End Time: {end_str}
          InlineKeyboardButton("🔙 Back", callback_data=back_cb)]
     ]
     markup = InlineKeyboardMarkup(keyboard)
-    print("good 4")
     # replace the message in-place (like noop_booked)
     await query.edit_message_text(text=message, reply_markup=markup)
-    print("good 5")
 
 # --- Pending appointments ---
 async def handle_pending_appointments(update: Update, context: CallbackContext):
@@ -230,12 +223,12 @@ async def handle_upcoming_appointments(update: Update, context: CallbackContext)
     if keyboard:
         keyboard.append([InlineKeyboardButton("🔙", callback_data="back_to_appt_menu")])
         msg = await query.message.edit_text(
-            "🔔 *Pending Appointments:* Choose below to manage:",
+            "🔔 *Upcoming Appointments:* Choose below to manage:",
             parse_mode='Markdown', reply_markup=InlineKeyboardMarkup(keyboard)
         )
     else:
         reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("🔙", callback_data="back_to_appt_menu")]])
-        msg = await query.message.edit_text("✅ No pending appointments found.", reply_markup=reply_markup, parse_mode='Markdown')
+        msg = await query.message.edit_text("✅ No upcoming appointments found.", reply_markup=reply_markup, parse_mode='Markdown')
 
 # --- Appointment status actions ---
 async def handle_appointment_status(update: Update, context: CallbackContext):
