@@ -33,9 +33,10 @@ class Messages:
             "select_service": "Select a service offered by <b>{barber_name}</b>:",
             "select_slot": "📅 Please choose a date (🟢 = Available)",
             "select_barber": (
-                "⭐ Your favorite barbers 👇" if details.get("is_favorites")
+                "❤️ Your favorite barbers 👇" if details.get("is_favorites")
                 else "Barbers near you 👇" if details.get("is_location_search")
-                else f"Available barbers in <b>{details.get('region', 'Unknown')}</b>👇"
+                else "⭐ Top rated barbers 👇" if details.get("is_top_rated")
+                else f"Available barbers in <b>{details.get('region', 'Unknown')}</b>👇" 
             ),
             "share_contact": "📱 Please share your contact number so the barber can contact you.",
             "contact_received": "✅ Contact received! Proceeding to booking confirmation...",

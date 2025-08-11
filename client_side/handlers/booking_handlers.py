@@ -90,6 +90,7 @@ async def handle_search_option(update: Update, context: CallbackContext) -> int:
         HelperUtils.set_user_data(context, "all_barbers", barbers)
 
     search_type = query.data.replace("search_by_", "")
+    print(f"Search type selected: {search_type}")
     HelperUtils.set_user_data(context, "search_type", search_type)
 
     if search_type == "location":
@@ -100,8 +101,63 @@ async def handle_search_option(update: Update, context: CallbackContext) -> int:
         return await favorite_barbers(update, context)
     elif search_type == "name":
         return await start_search_barber(update, context)
+    elif search_type == "rating":
+        return await top_rated(update, context)
 
 # ==================== OPTIONS ====================
+@HelperUtils.check_conversation_active
+async def top_rated(update: Update, context: CallbackContext) -> int:
+    """Handle top rated barbers display"""
+    query = update.callback_query
+    await query.answer()
+
+    try:
+        all_barbers = HelperUtils.get_user_data(context, "all_barbers")
+        print(f"All barbers: {all_barbers}")
+        if not all_barbers:
+            all_barbers = Customer.get_all_barbers(db)
+            HelperUtils.set_user_data(context, "all_barbers", all_barbers)
+        
+        rated_barbers = {}
+
+        # Loop through all barbers to calculate average ratings
+        for barber_id, barber_data in all_barbers.items():
+            ratings_ref = db.collection("barbers").document(barber_id).collection("ratings and reviews").stream()
+
+            ratings = [doc.to_dict().get("rating") for doc in ratings_ref if doc.to_dict().get("rating") is not None]
+
+            if ratings:
+                avg_rating = sum(ratings) / len(ratings)
+                barber_data["avg_rating"] = avg_rating
+                rated_barbers[barber_id] = barber_data
+            
+        if not rated_barbers:
+            await query.edit_message_text(
+                text="No barbers found with ratings.",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("Back", callback_data="back_to_search_option")]
+                ])
+            )
+            return SEARCH_OPTION
+
+        # Sort barbers by average rating in descending order
+        rated_barbers = dict(sorted(rated_barbers.items(), key=lambda item: item[1]["avg_rating"], reverse=True))
+
+        # Store the search type in context
+        HelperUtils.set_user_data(context, "search_type", "top_rated")
+
+        return await select_barber(update, context, page=0, barbers=rated_barbers)
+    
+    except Exception as e:
+        print(f"Error fetching top-rated barbers: {e}")
+        await query.edit_message_text(
+            text="An error occurred while fetching top-rated barbers.",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("Back", callback_data="back_to_search_option")]
+            ])
+        )
+        return SEARCH_OPTION
+
 @HelperUtils.check_conversation_active
 async def favorite_barbers(update: Update, context: CallbackContext) -> int:
     """Handle favorite barbers display"""
@@ -264,7 +320,8 @@ async def select_barber(update: Update, context: CallbackContext, page: int=0, b
             details={
                 "region": region, 
                 "is_location_search": search_type == "location",
-                "is_favorites": search_type == "favorites"
+                "is_favorites": search_type == "favorites",
+                "is_top_rated": search_type == "top_rated"
             }
         ) 
 
@@ -1326,7 +1383,7 @@ book_slots_handler = ConversationHandler(
     entry_points=[CallbackQueryHandler(search_option, pattern="^book_slots$")],
     states={
         SEARCH_OPTION: [
-            CallbackQueryHandler(handle_search_option, pattern="^search_by_(favorites|region|location|name)$"),
+            CallbackQueryHandler(handle_search_option, pattern="^search_by_(rating|favorites|region|location|name)$"),
             CallbackQueryHandler(handle_back_to_search_option, pattern="^back_to_search_option$"),
             CallbackQueryHandler(client_menu, pattern="^back_to_menu$"),
         ],

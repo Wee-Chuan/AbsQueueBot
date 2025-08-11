@@ -31,7 +31,8 @@ class Keyboards:
         print(f"MapUrl: {maps_url}")
 
         return [
-            [InlineKeyboardButton("⭐ Favorites", callback_data="search_by_favorites")],
+            [InlineKeyboardButton("⭐ Top Rated", callback_data="search_by_rating")],
+            [InlineKeyboardButton("❤️ Favorites", callback_data="search_by_favorites")],
             [InlineKeyboardButton("🌍 Regions", callback_data="search_by_region")],
             [InlineKeyboardButton("📍 Barbers near me", callback_data="search_by_location")],
             [InlineKeyboardButton("🔍 Search by name", callback_data="search_by_name")],
@@ -72,8 +73,22 @@ class Keyboards:
         # Barber buttons with distance at the side
         for doc_id, barber_info in barbers_page:
             btn_text = f"💈 {barber_info['name']}"
+
+            # Add distance if available
             if search_type == "location" or 'distance_km' in barber_info:
                 btn_text += f" ({barber_info['distance_km']}km)"
+            
+            # Add rating if available
+            rating = barber_info.get('avg_rating', None)
+            if rating is not None:
+                try:
+                    rating = float(rating)
+                    btn_text += f" (⭐ {rating:.1f})"
+                except ValueError:
+                    btn_text += " (⭐ N/A)"
+            else:
+                btn_text += " (⭐ N/A)"
+
             keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"barber_{doc_id}")])
 
         # Add pagination buttons
