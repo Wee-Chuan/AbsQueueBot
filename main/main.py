@@ -221,11 +221,6 @@ class BarberBot:
         # Always handle /switch_role, even outside conversation
         app.add_handler(CommandHandler("switch_role", self.switch_role))
 
-        # Always handle /cancel, even outside conversation
-        app.add_handler(CommandHandler("cancel", self.unified_cancel))
-
-        # Add unified command handlers
-
         # Add client side handlers
         app.add_handler(CommandHandler("client_menu", client_menu))
         app.add_handler(book_slots_handler)
@@ -276,6 +271,9 @@ class BarberBot:
     
         # sign out
         app.add_handler(CallbackQueryHandler(sign_out, pattern='signout')),  # Trigger for button press
+
+        # Always handle /cancel, even outside conversation
+        app.add_handler(CommandHandler("cancel", self.unified_cancel))
         
         return app
     
