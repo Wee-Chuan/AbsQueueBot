@@ -180,7 +180,11 @@ async def handle_calendar_selection(update: Update, context: CallbackContext) ->
     email = user.email
 
     time_slots = generate_time_slots(slot_date)
-    open_slots, booked_slots, completed_slots, noshow_slots, pending_slots = await get_slot_statuses(email, slot_date) # getting slot statuses for da dayyyyyyyyyyyyyyyyy
+    uuid = context.user_data['current_user'].uuid
+    
+    print(f"UUID: {uuid}")
+    
+    open_slots, booked_slots, completed_slots, noshow_slots, pending_slots = await get_slot_statuses(uuid, slot_date) # getting slot statuses for da dayyyyyyyyyyyyyyyyy
 
     time_slot_statuses = {}
     now = datetime.datetime.now(timezone)
@@ -317,18 +321,18 @@ async def toggle_multi_mode(update: Update, context: CallbackContext) -> int:
     # Rebuild the calendar keyboard with the new mode
     await handle_calendar_selection(update, context)
 
-async def get_slot_statuses(email: str, date: datetime.datetime):
+async def get_slot_statuses(uuid: str, date: datetime.datetime):
     print("in get_slot_statuses")
     sg_tz = pytz_timezone("Asia/Singapore")
     now_utc = dt.now(UTC)
     now = now_utc.astimezone(sg_tz)
 
-    open_ref = db.collection("open slots").where("barber_email", "==", email).where("`start time`", ">=", now)
-    booked_ref = db.collection("booked slots").where("barber_email", "==", email).where('no_show', '==', False).where('completed', '==', False).where('`start time`', '>=', now)
-    noshow_ref = db.collection("booked slots").where("barber_email", "==", email).where('no_show', '==', True)
-    completed_ref = db.collection("booked slots").where("barber_email", "==", email).where('completed', '==', True)
+    open_ref = db.collection("open slots").where("barber_id", "==", uuid).where("`start time`", ">=", now)
+    booked_ref = db.collection("booked slots").where("barber_id", "==", uuid).where('no_show', '==', False).where('completed', '==', False).where('`start time`', '>=', now)
+    noshow_ref = db.collection("booked slots").where("barber_id", "==", uuid).where('no_show', '==', True)
+    completed_ref = db.collection("booked slots").where("barber_id", "==", uuid).where('completed', '==', True)
     pending_ref =  db.collection('booked slots')\
-        .where('barber_email', '==', email).where('`start time`', '<=', now).where('completed', '==', False).where('no_show', '==', False)
+        .where('barber_id', '==', uuid).where('`start time`', '<=', now).where('completed', '==', False).where('no_show', '==', False)
 
     open_docs = list(open_ref.stream())
     booked_docs = list(booked_ref.stream())
@@ -435,12 +439,14 @@ async def manage_time_slot_actions(update: Update, context: CallbackContext) -> 
 
         firebase_id = user_sessions[query.from_user.id]
         email = auth.get_user(firebase_id).email
+        uuid = context.user_data['current_user'].uuid
         for slot_str in list(selected):
             start = timezone.localize(
                 datetime.datetime.strptime(slot_str, "%Y-%m-%d %H:%M")
             )
             end = start + timedelta(minutes=30)
             db.collection("open slots").add({
+                "barber_id": uuid,
                 "barber_email": email,
                 "start time":   start,
                 "end time":     end
@@ -470,13 +476,13 @@ async def manage_time_slot_actions(update: Update, context: CallbackContext) -> 
             return TIME_SELECTION
 
         firebase_id = user_sessions[query.from_user.id]
-        email = auth.get_user(firebase_id).email
+        uuid = context.user_data['current_user'].uuid
         for slot_str in list(selected):
             start = timezone.localize(
                 datetime.datetime.strptime(slot_str, "%Y-%m-%d %H:%M")
             )
             docs = db.collection("open slots") \
-                     .where("barber_email","==",email) \
+                     .where("barber_id","==",uuid) \
                      .where("`start time`","==",start).stream()
             for doc in docs:
                 db.collection("open slots").document(doc.id).delete()
@@ -639,11 +645,12 @@ async def noop_booked(update: Update, context: CallbackContext) -> None:
 
     # Get barber email from user context
     current_user = context.user_data.get('current_user')
+    uuid = current_user.uuid
     email = current_user.email
 
     # Firestore query
     collection_ref = db.collection('booked slots')
-    firestore_query = collection_ref.where("barber_email", "==", email).where("`start time`", "==", slot_datetime)
+    firestore_query = collection_ref.where("barber_id", "==", uuid).where("`start time`", "==", slot_datetime)
     print(f"{email}, {slot_datetime}")
     
     

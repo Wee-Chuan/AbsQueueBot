@@ -169,11 +169,11 @@ async def handle_pending_appointments(update: Update, context: CallbackContext):
     await query.answer()
     # await cleanup_chat_flow(update, context)
 
-    email = context.user_data.get('current_user').email
+    uuid = context.user_data.get('current_user').uuid
     now = datetime.now(pytz.UTC)
     results = (
         db.collection('booked slots')
-          .where('barber_email', '==', email)
+          .where('barber_id', '==', uuid)
           .where('`start time`', '<=', now)
           .where('completed', '==', False)
           .where('no_show', '==', False)
@@ -205,11 +205,11 @@ async def handle_upcoming_appointments(update: Update, context: CallbackContext)
     await query.answer()
     # await cleanup_chat_flow(update, context)
 
-    email = context.user_data.get('current_user').email
+    uuid = context.user_data.get('current_user').uuid
     now = datetime.now(pytz.UTC)
     results = (
         db.collection('booked slots')
-          .where('barber_email', '==', email)
+          .where('barber_id', '==', uuid)
           .where('`start time`', '>=', now)
           .stream()
     )
@@ -275,8 +275,8 @@ def generate_appointment_keyboard(appointments, prefix, page=0, per_page=5):
 
 async def handle_completed_appointments(update: Update, context: CallbackContext):
     query = update.callback_query; await query.answer(); 
-    email = context.user_data.get('current_user').email
-    docs = list(db.collection('booked slots').where('barber_email','==',email).where('completed','==',True).stream())
+    uuid = context.user_data.get('current_user').uuid
+    docs = list(db.collection('booked slots').where('barber_id','==',uuid).where('completed','==',True).stream())
     if docs:
         reply_markup = generate_appointment_keyboard(docs, prefix="COMPLETED")
         keyboard = list(reply_markup.inline_keyboard)
@@ -290,8 +290,8 @@ async def handle_completed_appointments(update: Update, context: CallbackContext
 
 async def handle_no_show_appointments(update: Update, context: CallbackContext):
     query = update.callback_query; await query.answer(); #await cleanup_chat_flow(update, context)
-    email = context.user_data.get('current_user').email
-    docs = list(db.collection('booked slots').where('barber_email','==',email).where('no_show','==',True).stream())
+    uuid = context.user_data.get('current_user').uuid
+    docs = list(db.collection('booked slots').where('barber_id','==',uuid).where('no_show','==',True).stream())
     if docs:
         reply_markup = generate_appointment_keyboard(docs, prefix="NOSHOW")
         keyboard = list(reply_markup.inline_keyboard)
