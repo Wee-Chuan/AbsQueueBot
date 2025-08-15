@@ -104,8 +104,10 @@ async def start_login(update: Update, context: CallbackContext) -> int:
         welcome_message = f"✅ You are currently logged in as *{curr_user.name}* 💈"
         if update.message:
             await update.message.reply_text(welcome_message, parse_mode=ParseMode.MARKDOWN_V2)
+            await menu(update, context)
         elif update.callback_query:
             await update.callback_query.message.reply_text(welcome_message, parse_mode=ParseMode.MARKDOWN_V2)
+            await menu(update, context)
         return ConversationHandler.END  # Exit if already logged in
     
     # not logged in
