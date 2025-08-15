@@ -1145,13 +1145,15 @@ async def confirm_booking(update: Update, context: CallbackContext) -> int:
 
     user_response = query.data
 
+    barber_info = HelperUtils.get_user_data(context, "barber_info")
+
     if user_response == "confirm_booking":
         slot_id = HelperUtils.get_user_data(context, "slot_id")             # Retrieve the selected slot id
         service_ids = HelperUtils.get_user_data(context, "service_ids")       # Retrieve the selected services
         user_id = query.from_user.id
         user_name = query.from_user.first_name
         phone_number = HelperUtils.get_user_data(context, "phone_number")   # Retrieve the user's phone number
-        barber_email = HelperUtils.get_user_data(context, "barber_email")   # Retrieve the selected barber's email
+        barber_email = barber_info["email"]   # Retrieve the selected barber's email
         barber_name = HelperUtils.get_user_data(context, "barber_name")     # Retrieve the selected barber's name
         barber_id = HelperUtils.get_user_data(context, "barber_doc_id")  # Retrieve the barber's document ID
 
@@ -1178,11 +1180,9 @@ async def confirm_booking(update: Update, context: CallbackContext) -> int:
         if success:
             try:
                 # Get barber's document
-                barber_query = db.collection("barbers").where("email", "==", barber_email).limit(1)
-                docs = barber_query.stream()
-                barber_doc = next(docs, None)
+                barber_doc = db.collection("barbers").document(barber_id).get()
 
-                if barber_doc:
+                if barber_doc.exists:
                     barber_data = barber_doc.to_dict()
                     barber_telegram_id = barber_data.get("telegram_id")
 

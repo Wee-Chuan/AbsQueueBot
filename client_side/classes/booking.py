@@ -346,6 +346,7 @@ class Booking:
             booked_slot_data = booked_slot_ref.to_dict()
             start_time = booked_slot_data['start time']
             barber_email = booked_slot_data["barber_email"]
+            barber_id = booked_slot_data.get("barber_id")
             
             # Ensure that the user is the one who made the booking (extra checks)
             if booked_slot_data['booked_by']['customer_id'] != user_id:
@@ -358,6 +359,7 @@ class Booking:
             db.collection("open slots").document(booking_id).set({
                 "start time": start_time,
                 "barber_email": barber_email,
+                "barber_id": barber_id,
             })
 
             print(f"Booking {booking_id} canceled successfully.")
