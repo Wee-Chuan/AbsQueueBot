@@ -264,7 +264,7 @@ class Booking:
                     f"💲 <b>Total Price:</b> ${total_service_price:.2f}\n\n" 
                     f"📅 <b>Date:</b> {start_time_sgt.strftime('%a %d/%m/%Y')}\n" 
                     f"🕛 <b>Time:</b> {start_time_sgt.strftime('%I:%M %p')}\n\n" 
-                    f"Thank you, {user_name}! You can view your bookings back at /client_menu"
+                    f"Thank you, {user_name}! Your booking has been confirmed."
                 )
 
                 return True, message, start_time, service_name_str

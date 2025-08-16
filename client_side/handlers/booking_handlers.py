@@ -16,6 +16,7 @@ from client_side.utils.core_commands import *
 from client_side.utils.keyboards import Keyboards
 from client_side.utils.messages import Messages
 from shared.utils import HelperUtils
+from client_side.handlers.view_bookings_handlers import start_bookings
 
 # Classes imports
 from client_side.classes.booking import Booking
@@ -1172,6 +1173,9 @@ async def confirm_booking(update: Update, context: CallbackContext) -> int:
         await context.bot.send_message(
             chat_id=chat_id,
             text=message,
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📖 View My Bookings", callback_data="view_booked_slots")]
+            ]),
             parse_mode="HTML"
         )
         HelperUtils.reset_conversation_state(context)

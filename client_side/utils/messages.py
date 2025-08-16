@@ -81,7 +81,7 @@ class Messages:
         """Generate error messages based on the context."""
         messages = {
             "no_barbers_found": "🙁 No barbers found in the selected region.\n\nPlease try selecting a different region.",
-            "no_location_barbers": "🙁 <b>No barbers found near your current location.</b>\nPlease try searching by region or name.",
+            "no_location_barbers": "🙁 <b>No barbers found near your current location.</b>",
             "no_services": "🙁 No services available for this barber at the moment.",
             "no_slots": "🙁 No available slots at the moment. Please check back later.",
             "barber_not_found": "🙁 Barber not found. Please try again.",

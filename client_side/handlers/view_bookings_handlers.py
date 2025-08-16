@@ -706,7 +706,9 @@ async def back_to_show_date_bookings(update: Update, context: CallbackContext) -
 
 # ==================== CONVERSATION HANDLER DEFINITION ====================
 view_bookings_handler = ConversationHandler(
-    entry_points=[CallbackQueryHandler(start_bookings, pattern="^view_booked_slots$")],
+    entry_points=[
+        CommandHandler("bookings", start_bookings),
+        CallbackQueryHandler(start_bookings, pattern="^view_booked_slots$")],
     states={
         VIEW_BOOKINGS_OPTIONS: [
             CallbackQueryHandler(view_upcoming_bookings, pattern="^view_upcoming$"),
