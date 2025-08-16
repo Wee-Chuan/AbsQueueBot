@@ -1178,7 +1178,6 @@ async def confirm_booking(update: Update, context: CallbackContext) -> int:
             ]),
             parse_mode="HTML"
         )
-        HelperUtils.reset_conversation_state(context)
 
         # Notify the barber if telegram_id is stored
         if success:
