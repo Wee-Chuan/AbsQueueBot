@@ -511,7 +511,8 @@ async def search_barber(update: Update, context: CallbackContext) -> int:
     
     # Get barber name from message or callback query
     if update.message:
-        barber_name = update.message.text                                   # Extract the barber's name from the message
+        barber_name = update.message.text.lower()                           # Extract the barber's name from the message
+
         print(f"Barber name from message: {barber_name}")
         HelperUtils.set_user_data(context, "barber_name", barber_name)
         HelperUtils.store_message_id(context, update.message.message_id)    # Store the user's search message ID
@@ -1423,6 +1424,8 @@ book_slots_handler = ConversationHandler(
             CallbackQueryHandler(search_barber, pattern="^search_unfollow_"),
             CallbackQueryHandler(handle_back_to_barbers, pattern="^back_to_barbers"),
             CallbackQueryHandler(handle_back_to_search, pattern="^back_to_search$"),
+            CallbackQueryHandler(view_barber_details, pattern="^back_to_info"),
+            CallbackQueryHandler(search_barber, pattern="^back_to_search_info$"),
             CallbackQueryHandler(client_menu, pattern="^back_to_menu$"),
         ],
         LEARN_MORE: [
