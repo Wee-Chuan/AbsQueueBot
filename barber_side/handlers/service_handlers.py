@@ -16,6 +16,8 @@ from barber_side.utils.globals import *
 from barber_side.classes.classes import Barber, Service
 from barber_side.handlers.menu_handlers import menu as m
 
+
+
 # --- Helper functions ---
 async def cleanup_messages(update: Update, context: CallbackContext):
     """Delete all stored messages and clear the list."""
@@ -463,8 +465,11 @@ async def handle_cancel_delete(update: Update, context: CallbackContext) -> int:
     return await view_services(update, context, False)  # Show updated list
 
 ## ----------------- create service -----------------
+name_received = False
 # 1
 async def start_create_service(update: Update, context: CallbackContext) -> int:
+    global name_received
+    name_received = False # reset everytime a new service is created
     query = update.callback_query; await query.answer()
     keyboard = []
     keyboard.append([InlineKeyboardButton("❌ Cancel", callback_data = "back_to_services_menu"),
@@ -484,8 +489,12 @@ async def get_service_name(update: Update, context: CallbackContext) -> int:
                              InlineKeyboardButton("🏠 Home", callback_data= "back_to_main")])
     keyboard = InlineKeyboardMarkup(keyboard)
 
-    context.user_data["service_name"] = update.message.text
-    prompt = await update.message.reply_text("Please enter the price of the service.", reply_markup=keyboard)
+    global name_received
+    if name_received == False:
+        context.user_data["service_name"] = update.message.text
+        name_received = True
+        
+    prompt = await update.message.reply_text("Please enter the price of the service. (without '$')", reply_markup=keyboard)
     context.user_data.setdefault("messages_to_delete", []).append(prompt.message_id)
     return PRICE
 
@@ -532,6 +541,7 @@ async def get_service_description(update: Update, context: CallbackContext) -> i
     await update.message.reply_text(f"✅ Service '{name}' created successfully!")
     await cleanup_messages(update, context)
     await services_menu(update, context)
+    return SERVICES_VIEWING
 
 ## ----------------- other fallbacks -----------------
 async def cancel(update: Update, context: CallbackContext) -> int:
