@@ -204,7 +204,7 @@ class BarberBot:
             entry_points=[CommandHandler("start", self.start)],
             states={
                 SELECTING_ROLE: [
-                    MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_role_selection)
+                    MessageHandler(filters.Regex("(Client|Barber)$"),  self.handle_role_selection)
                 ],
             },
             fallbacks=[
