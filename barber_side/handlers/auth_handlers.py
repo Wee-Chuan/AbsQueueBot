@@ -299,13 +299,16 @@ async def get_password_su(update: Update, context: CallbackContext) -> int:
 ### Step 3: Save password and ask for name ###
 async def get_name_su(update: Update, context: CallbackContext) -> int:
     context.user_data["password"] = update.message.text.strip()  # WARNING: Never store plaintext passwords in production
-    await update.message.reply_text("Please enter your full name:")
+    message = await update.message.reply_text("Please enter your barber name:")
+    context.user_data.setdefault('signup_deletes', []).append(message.message_id)
     return NAME_SU
 
 ### Step 4: Save address and ask for postcode ###
 async def get_postcode_su(update: Update, context: CallbackContext) -> int:
     context.user_data["name"] = update.message.text.strip()
-    await update.message.reply_text("Please enter your postal code:")
+    context.user_data.setdefault('signup_deletes', []).append(update.message.message_id)
+    message = await update.message.reply_text("Please enter your postal code:")
+    context.user_data.setdefault('signup_deletes', []).append(message.message_id)
     return POSTCODE_SU
 
 ### Step 5: Save name and ask for address ###
@@ -314,23 +317,26 @@ async def get_address_su(update: Update, context: CallbackContext) -> int:
 
     # Check if it's 6 digits
     if not re.match(r"^\d{6}$", postal):
-        await update.message.reply_text("❌ Postal code must be 6 digits. Try again:")
+        message = await update.message.reply_text("❌ Postal code must be 6 digits. Try again:")
+        context.user_data.setdefault('signup_deletes', []).append(message.message_id)
         return POSTCODE_SU
 
     # Check if first 2 digits represent a valid SG sector (01–82)
     sector = int(postal[:2])
     if not (1 <= sector <= 82):
-        await update.message.reply_text("❌ Invalid Singapore postal code. Please try again:")
+        message = await update.message.reply_text("❌ Invalid Singapore postal code. Please try again:")
+        context.user_data.setdefault('signup_deletes', []).append(message.message_id)
         return POSTCODE_SU
 
     context.user_data["postal"] = postal
-    
-    await update.message.reply_text("Please enter your address:")
+    context.user_data.setdefault('signup_deletes', []).append(update.message.message_id)
+    message = await update.message.reply_text("Please enter your address:")
+    context.user_data.setdefault('signup_deletes', []).append(message.message_id)
     return ADDRESS_SU
 
 async def get_region_su(update: Update, context: CallbackContext) -> int:
     raw_address = update.message.text.strip()
-
+    context.user_data.setdefault('signup_deletes', []).append(update.message.message_id)
     # Remove trailing 6-digit postal code if present (with or without comma/space)
     cleaned_address = re.sub(r"[\s,]*\d{6}$", "", raw_address).strip()
 
@@ -353,10 +359,11 @@ async def get_region_su(update: Update, context: CallbackContext) -> int:
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await update.message.reply_text(
+    message = await update.message.reply_text(
         "Please select your region:",
         reply_markup=reply_markup
     )
+    context.user_data.setdefault('signup_deletes', []).append(message.message_id)
     return REGION_SU
 
 
@@ -388,10 +395,19 @@ async def create_barber_and_save(update: Update, context: CallbackContext) -> in
     success = barber.add_to_db_with_auth(db, password)
 
     if success:
-        await update.callback_query.message.reply_text("✅ You have been successfully registered!")
+        keyboard = [
+            [InlineKeyboardButton("Login", callback_data = "login")]
+        ]
+        await update.callback_query.message.reply_text("✅ You have been successfully registered!", reply_markup = InlineKeyboardMarkup(keyboard))
     else:
         await update.callback_query.message.reply_text("❌ Something went wrong during registration.")
-
+    
+    signup_deletes = context.user_data.get("signup_deletes", [])
+    await context.bot.delete_messages(
+        chat_id=update.effective_chat.id,
+        message_ids=signup_deletes
+    )
+    signup_deletes = []
     return ConversationHandler.END
 
 ### Cancel handler ###
