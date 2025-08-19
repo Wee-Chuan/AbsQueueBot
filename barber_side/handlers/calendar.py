@@ -674,7 +674,7 @@ async def noop_booked(update: Update, context: CallbackContext) -> None:
     customer_id = data.get("booked_by", {}).get("customer_id")
     phone_number = data.get("booked_by", {}).get("phone_number")
     username = data.get("booked_by", {}).get("username")
-    service_name = data.get("service_name")
+    services = data.get("service_name")
     service_price = data.get("service_price")
     start_time = data.get("start time")
     end_time = data.get("end time")
@@ -696,16 +696,18 @@ async def noop_booked(update: Update, context: CallbackContext) -> None:
     status_line = ("❌ NO SHOW\n" if prefix == "noshow" else "✅ COMPLETED\n" if prefix == "completed" else "❔ PENDING\n" if prefix == "pending" else "")
 
 
+    services_list = ", ".join(services)  # turns ["cut", "fade", "perm"] into "cut, fade, perm"
+
     message = f"""
-{status_line}✨ Service Details:
-🔧 Service: {service_name} - ${service_price}
-⏰ Start Time: {start_time_str}
+    {status_line}✨ Service Details:
+    🔧 Service(s): {services_list}
+    💰 Price: ${service_price}
+    ⏰ Start Time: {start_time_str}
 
-👤 Customer Info:
-📝 Username: {username}
-📞 Phone: {phone_number}
-"""
-
+    👤 Customer Info:
+    📝 Username: {username}
+    📞 Phone: {phone_number}
+    """
 
     url = f"tg://user?id={customer_id}"
     
