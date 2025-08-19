@@ -28,7 +28,7 @@ async def profile_details(update: Update, context: CallbackContext) -> int:
         email = data.get('email')
         barber_name = data.get('name')
         region = data.get('region')
-        postal_code = data.get('postal code')
+        postal_code = data.get('postal')
         address = data.get('address')
         portfolio = data.get('portfolio_link')
         
