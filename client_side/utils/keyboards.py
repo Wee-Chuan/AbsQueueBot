@@ -31,12 +31,19 @@ class Keyboards:
         print(f"MapUrl: {maps_url}")
 
         return [
+            # Search by name row
+            [InlineKeyboardButton("🔍 Search by Name", callback_data="search_by_name")],
+
+            # Popular choices row
             [InlineKeyboardButton("⭐ Top Rated", callback_data="search_by_rating"),
             InlineKeyboardButton("❤️ Favorites", callback_data="search_by_favorites")],
+
+            # Location based row
             [InlineKeyboardButton("🌍 Regions", callback_data="search_by_region"),
-            InlineKeyboardButton("📍 Barbers near me", callback_data="search_by_location")],
-            [InlineKeyboardButton("🔍 Search by name", callback_data="search_by_name"),
-            InlineKeyboardButton("🗺 View Barbers on a Map", url=maps_url)]
+            InlineKeyboardButton("📍 Near me", callback_data="search_by_location")],
+
+            # Map link row
+            [InlineKeyboardButton("🗺 Map", url=maps_url)]
         ]
     
     @staticmethod
