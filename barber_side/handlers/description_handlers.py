@@ -98,15 +98,19 @@ async def handle_description_menu_choice(update: Update, context: CallbackContex
     elif query.data == "back_to_menu":
         return await descriptions_menu(update, context)
 
+async def back_to_desc_menu(update:Update, context:CallbackContext) -> int:
+    await descriptions_menu(update, context)
+
 async def view_my_descriptions(update: Update, context: CallbackContext) -> int:
     descriptions = await Description.get_all_descriptions(update, context)
 
     if not descriptions:
         try:
-            await context.user_data["last_message"].edit_text("No descriptions found.")
+            back_button = InlineKeyboardButton("⬅ Back to Menu", callback_data="back_to_menu")
+            reply_markup = InlineKeyboardMarkup([[back_button]])
+            await context.user_data["last_message"].edit_text("No descriptions found.", reply_markup = reply_markup)
         except Exception as e:
             print(f"Error editing to show 'No descriptions found': {e}")
-        return ConversationHandler.END
 
     context.user_data.update({
         "descriptions": list(d.description for d in descriptions),# store Description objects directly
@@ -294,7 +298,9 @@ description_conv_handler = ConversationHandler(
     },
     fallbacks=[
         CallbackQueryHandler(back_to_main, pattern=r"^back_to_main$"),
-        CommandHandler("menu", back_to_main)],
+        CommandHandler("menu", back_to_main),
+        CallbackQueryHandler(back_to_desc_menu, pattern=r"^back_to_menu")
+        ],
     per_user=True,
     allow_reentry=True
 )

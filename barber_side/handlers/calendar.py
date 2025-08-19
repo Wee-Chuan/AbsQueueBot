@@ -650,8 +650,8 @@ async def noop_booked(update: Update, context: CallbackContext) -> None:
 
     # Firestore query
     collection_ref = db.collection('booked slots')
-    firestore_query = collection_ref.where("barber_id", "==", uuid).where("`start time`", "==", slot_datetime)
-    print(f"{email}, {slot_datetime}")
+    firestore_query = collection_ref.where("barber_id", "==", uuid).where("`start time`", ">=", slot_datetime)
+    print(f"{uuid}, {slot_datetime}")
     
     
     # Debug: print the query before executing
@@ -723,6 +723,8 @@ async def noop_booked(update: Update, context: CallbackContext) -> None:
     # Send the message as an alert
     msg = await callback_query.edit_message_text(text=message, reply_markup=keyboard)
     context.user_data['booked_msg_id'] = msg.message_id
+
+
 
 async def noop_close(update: Update, context: CallbackContext) -> None:
     query = update.callback_query

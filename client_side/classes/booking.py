@@ -178,7 +178,9 @@ class Booking:
                 portfolio = data.get('portfolio_link')
                 region = data.get('region', "No region available")
                 address = data.get('address', "No address available")
-                postal = data.get('postal code', "No postal code available")
+                postal = data.get('postal', "No postal code available")
+                
+                print(f"POSTAL {postal}")
 
                 # Fetch the description using the id from 'descriptions' collection
                 description_text = "No active description available."
@@ -306,7 +308,7 @@ class Booking:
                 if barber_info:
                     barber_info = barber_info.to_dict()
                     barber_address = barber_info.get("address", "No address available")
-                    barber_postal = barber_info.get("postal code", "No postal code available")
+                    barber_postal = barber_info.get("postal", "No postal code available")
                     barber_region = barber_info.get("region", "No region available")
 
                 # Convert times from UTC to Singapore Time
@@ -396,7 +398,7 @@ class Booking:
                         barber_info = barber_doc.to_dict()
                         barber_name = barber_info.get("name", barber_name)
                         barber_address = barber_info.get("address", barber_address)
-                        barber_postal = barber_info.get("postal code", barber_postal)
+                        barber_postal = barber_info.get("postal", barber_postal)
                         barber_region = barber_info.get("region", barber_region)
 
                 service_names = booking_data.get("service_name", [])
@@ -458,7 +460,7 @@ class Booking:
                         barber_info = barber_doc.to_dict()
                         barber_name = barber_info.get("name", barber_name)
                         barber_address = barber_info.get("address", barber_address)
-                        barber_postal = barber_info.get("postal code", barber_postal)
+                        barber_postal = barber_info.get("postal", barber_postal)
                         barber_region = barber_info.get("region", barber_region)
 
                 service_names = booking_data.get("service_name", [])
@@ -519,7 +521,7 @@ class Booking:
                         barber_info = barber_doc.to_dict()
                         barber_name = barber_info.get("name", barber_name)
                         barber_address = barber_info.get("address", barber_address)
-                        barber_postal = barber_info.get("postal code", barber_postal)
+                        barber_postal = barber_info.get("postal", barber_postal)
                         barber_region = barber_info.get("region", barber_region)
 
                 service_names = booking_data.get("service_name", [])
