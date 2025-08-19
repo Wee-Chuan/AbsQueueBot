@@ -162,8 +162,8 @@ async def get_login_details(update: Update, context: CallbackContext) -> int:
         
         # Query Firestore for barber data
         collection_ref = db.collection('barbers')
-        
-        query = collection_ref.where("email", "==", email)
+        print(f" UUID {user_id}")
+        query = collection_ref.where("uuid", "==", user_id)
         
         
         result = query.stream()
