@@ -153,29 +153,11 @@ class Keyboards:
         """Buttons for learning more section."""
         keyboard = []
 
-        def is_valid_url(url):
-            # Check for http/https and common domain endings
-            valid_domains = (".com", ".net", ".org", ".sg", ".co", ".io", ".edu", ".gov")
-            return (
-                isinstance(url, str)
-                and any(url.endswith(domain) for domain in valid_domains)
-            )
-
-        def format_url(url):
-            if not url.startswith(("http://", "https://")):
-                return f"https://{url}"
-            return url
-
         if barber_info:
-            if barber_info.get('instagram'): 
-                keyboard.append([InlineKeyboardButton("📷 Instagram", url=f"https://www.instagram.com/{barber_info['instagram']}/")])
-            if barber_info.get('facebook'):
-                keyboard.append([InlineKeyboardButton("📘 Facebook", url=f"https://www.facebook.com/{barber_info['facebook']}/")])
-            if barber_info.get('website') and is_valid_url(barber_info['website']):
-                keyboard.append([InlineKeyboardButton("🌐 Website", url=format_url(barber_info['website']))])
-            if barber_info.get('portfolio_link') and is_valid_url(barber_info['portfolio_link']):
-                keyboard.append([InlineKeyboardButton("📂 Portfolio", url=format_url(barber_info['portfolio_link']))])
-                
+            if barber_info.get('ig_link'): 
+                keyboard.append([InlineKeyboardButton("📷 Instagram", url=f"{barber_info['ig_link']}")])
+            if barber_info.get('tiktok_link'):
+                keyboard.append([InlineKeyboardButton("🕺 Tiktok", url=f"{barber_info['tiktok_link']}")])
             
         if search_type == "name":
             keyboard.append([InlineKeyboardButton("◀", callback_data=f"back_to_search_info"), InlineKeyboardButton("🏠 Home", callback_data="back_to_menu")])
