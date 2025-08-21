@@ -164,7 +164,7 @@ class Booking:
     def search_barber_by_name(barber_name: str, db: firestore.Client):
         """Search for a barber by name in Firestore."""
         try:
-            barbers_ref = db.collection('barbers').where('name', '==', barber_name).stream()
+            barbers_ref = db.collection('barbers').where('name_lowercase', '==', barber_name).stream()
             barber_data = next(barbers_ref, None)
             if barber_data:
                 data = barber_data.to_dict()
@@ -172,10 +172,8 @@ class Booking:
                 barber_email = data.get('email', "No email available")
                 barber_name = data.get('name', "Unknown Barber")
                 description_ref = data.get('description_id')
-                instagram = data.get('instagram')
-                facebook = data.get('facebook')
-                website = data.get('website')
-                portfolio = data.get('portfolio_link')
+                ig_link = data.get('ig_link')
+                tiktok_link = data.get('tiktok_link')
                 region = data.get('region', "No region available")
                 address = data.get('address', "No address available")
                 postal = data.get('postal', "No postal code available")
@@ -195,10 +193,8 @@ class Booking:
                     'email': barber_email,
                     'name': barber_name,
                     'description': description_text,
-                    'instagram': instagram,
-                    'facebook': facebook,
-                    'website': website,
-                    'portfolio_link': portfolio,
+                    'ig_link': ig_link,
+                    'tiktok_link': tiktok_link,
                     'region': region,
                     'address': address,
                     'postal': postal
