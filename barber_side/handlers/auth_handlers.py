@@ -303,13 +303,27 @@ async def get_name_su(update: Update, context: CallbackContext) -> int:
     context.user_data.setdefault('signup_deletes', []).append(message.message_id)
     return NAME_SU
 
-### Step 4: Save address and ask for postcode ###
+### Step 4: Save name and ask for postcode (with Firestore check) ###
 async def get_postcode_su(update: Update, context: CallbackContext) -> int:
-    context.user_data["name"] = update.message.text.strip()
+    barber_name = update.message.text.strip()
     context.user_data.setdefault('signup_deletes', []).append(update.message.message_id)
-    message = await update.message.reply_text("Please enter your postal code:")
-    context.user_data.setdefault('signup_deletes', []).append(message.message_id)
-    return POSTCODE_SU
+
+    # Firestore check for existing barber name
+    barbers_ref = db.collection("barbers")
+    query = barbers_ref.where("name", "==", barber_name).limit(1)
+    results = query.stream()
+
+    if any(results):  # If a document exists
+        err_msg = await update.message.reply_text(
+            "❌ That barber name is already taken. Please choose another."
+        )
+        context.user_data.setdefault("signup_deletes", []).append(err_msg.message_id)
+        return NAME_SU  # Stay on the name step
+    else:
+        context.user_data["name"] = barber_name
+        message = await update.message.reply_text("Please enter your postal code:")
+        context.user_data.setdefault("signup_deletes", []).append(message.message_id)
+        return POSTCODE_SU
 
 ### Step 5: Save name and ask for address ###
 async def get_address_su(update: Update, context: CallbackContext) -> int:
