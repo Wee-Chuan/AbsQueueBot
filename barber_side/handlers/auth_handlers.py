@@ -261,6 +261,12 @@ async def back_to_main(update:Update, context:CallbackContext):
     await menu(update, context)
     return ConversationHandler.END
 
+### Cancel handler ###
+async def cancel_log_in(update: Update, context: CallbackContext) -> int:
+    await update.message.reply_text("Log in cancelled. Tap 👉🏽 /start")
+    return ConversationHandler.END
+
+
 # Define the login conversation handler
 # The entry point for the /login command is already here:
 login_conversation_handler = ConversationHandler(
@@ -271,7 +277,8 @@ login_conversation_handler = ConversationHandler(
         PASSWORD: [MessageHandler(filters.TEXT  & ~filters.COMMAND, get_login_details)],
     },
     fallbacks=[
-        CommandHandler("menu", back_to_main)
+        CommandHandler("menu", back_to_main),
+        CommandHandler("cancel", cancel_log_in)
     ],
     per_user=True,
     allow_reentry=True
@@ -428,7 +435,7 @@ async def create_barber_and_save(update: Update, context: CallbackContext) -> in
 
 ### Cancel handler ###
 async def cancel_sign_up(update: Update, context: CallbackContext) -> int:
-    await update.message.reply_text("Sign-up process cancelled.")
+    await update.message.reply_text("Sign-up process cancelled. Tap 👉🏽 /start")
     return ConversationHandler.END
 
 signup_handler = ConversationHandler(
