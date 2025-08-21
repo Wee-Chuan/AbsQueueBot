@@ -164,7 +164,7 @@ class Booking:
     def search_barber_by_name(barber_name: str, db: firestore.Client):
         """Search for a barber by name in Firestore."""
         try:
-            barbers_ref = db.collection('barbers').where('name', '==', barber_name).stream()
+            barbers_ref = db.collection('barbers').where('name_lowercase', '==', barber_name).stream()
             barber_data = next(barbers_ref, None)
             if barber_data:
                 data = barber_data.to_dict()

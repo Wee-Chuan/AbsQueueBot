@@ -514,7 +514,7 @@ async def search_barber(update: Update, context: CallbackContext) -> int:
         barber_name = update.message.text.lower()                           # Extract the barber's name from the message
 
         print(f"Barber name from message: {barber_name}")
-        HelperUtils.set_user_data(context, "barber_name", barber_name)
+        # HelperUtils.set_user_data(context, "barber_name", barber_name)
         HelperUtils.store_message_id(context, update.message.message_id)    # Store the user's search message ID
     elif update.callback_query:
         await update.callback_query.answer()                                
