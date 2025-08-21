@@ -51,7 +51,8 @@ async def login_dev(update: Update, context: CallbackContext) -> None:
             desc_id=barber_doc.get('description_id'),
             postal=barber_doc.get('postal code'),
             region=barber_doc.get('region'),
-            portfolio = barber_doc.get('portfolio_link'),
+            ig_link = barber_doc.get('ig_link', "No Instagram link"),
+            tiktok_link = barber_doc.get('tiktok_link', "No TikTok link"),
             doc_id=result_list[0].id,
             services=barber_doc.get('services'),
             uuid=uid
@@ -191,9 +192,10 @@ async def get_login_details(update: Update, context: CallbackContext) -> int:
             email=barber_doc.get('email'),
             name=barber_doc.get('name'),
             desc_id=barber_doc.get('description_id'),
-            postal=barber_doc.get('postal code'),
+            postal=barber_doc.get('postal'),
             region=barber_doc.get('region'),
-            portfolio=barber_doc.get('portfolio_link'),
+            ig_link = barber_doc.get('ig_link', "No Instagram link"),
+            tiktok_link = barber_doc.get('tiktok_link', "No TikTok link"),
             doc_id=result_list[0].id,
             services=barber_doc.get('services'),
             uuid=uid
@@ -259,6 +261,12 @@ async def back_to_main(update:Update, context:CallbackContext):
     await menu(update, context)
     return ConversationHandler.END
 
+### Cancel handler ###
+async def cancel_log_in(update: Update, context: CallbackContext) -> int:
+    await update.message.reply_text("Log in cancelled. Tap 👉🏽 /start")
+    return ConversationHandler.END
+
+
 # Define the login conversation handler
 # The entry point for the /login command is already here:
 login_conversation_handler = ConversationHandler(
@@ -269,7 +277,8 @@ login_conversation_handler = ConversationHandler(
         PASSWORD: [MessageHandler(filters.TEXT  & ~filters.COMMAND, get_login_details)],
     },
     fallbacks=[
-        CommandHandler("menu", back_to_main)
+        CommandHandler("menu", back_to_main),
+        CommandHandler("cancel", cancel_log_in)
     ],
     per_user=True,
     allow_reentry=True
@@ -303,13 +312,27 @@ async def get_name_su(update: Update, context: CallbackContext) -> int:
     context.user_data.setdefault('signup_deletes', []).append(message.message_id)
     return NAME_SU
 
-### Step 4: Save address and ask for postcode ###
+### Step 4: Save name and ask for postcode (with Firestore check) ###
 async def get_postcode_su(update: Update, context: CallbackContext) -> int:
-    context.user_data["name"] = update.message.text.strip()
+    barber_name = update.message.text.strip()
     context.user_data.setdefault('signup_deletes', []).append(update.message.message_id)
-    message = await update.message.reply_text("Please enter your postal code:")
-    context.user_data.setdefault('signup_deletes', []).append(message.message_id)
-    return POSTCODE_SU
+
+    # Firestore check for existing barber name
+    barbers_ref = db.collection("barbers")
+    query = barbers_ref.where("name", "==", barber_name).limit(1)
+    results = query.stream()
+
+    if any(results):  # If a document exists
+        err_msg = await update.message.reply_text(
+            "❌ That barber name is already taken. Please choose another."
+        )
+        context.user_data.setdefault("signup_deletes", []).append(err_msg.message_id)
+        return NAME_SU  # Stay on the name step
+    else:
+        context.user_data["name"] = barber_name
+        message = await update.message.reply_text("Please enter your postal code:")
+        context.user_data.setdefault("signup_deletes", []).append(message.message_id)
+        return POSTCODE_SU
 
 ### Step 5: Save name and ask for address ###
 async def get_address_su(update: Update, context: CallbackContext) -> int:
@@ -412,7 +435,7 @@ async def create_barber_and_save(update: Update, context: CallbackContext) -> in
 
 ### Cancel handler ###
 async def cancel_sign_up(update: Update, context: CallbackContext) -> int:
-    await update.message.reply_text("Sign-up process cancelled.")
+    await update.message.reply_text("Sign-up process cancelled. Tap 👉🏽 /start")
     return ConversationHandler.END
 
 signup_handler = ConversationHandler(

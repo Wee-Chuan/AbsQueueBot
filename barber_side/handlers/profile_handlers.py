@@ -30,9 +30,10 @@ async def profile_details(update: Update, context: CallbackContext) -> int:
         region = data.get('region')
         postal_code = data.get('postal')
         address = data.get('address')
-        portfolio = data.get('portfolio_link')
+        ig_link = data.get('ig_link')
+        tiktok_link = data.get('tiktok_link')
         
-        caption = f"Barber Name: {barber_name}\nEmail: {email}\nRegion: {region}\nPostal Code: {postal_code}\nAddress: {address}\nPortfolio Link: {portfolio}"
+        caption = f"Barber Name: {barber_name}\nEmail: {email}\nRegion: {region}\nPostal Code: {postal_code}\nAddress: {address}\nInstagram: {ig_link}\nTiktok: {tiktok_link}"
         
         # Create back button
         keyboard = [
