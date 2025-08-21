@@ -36,7 +36,7 @@ async def menu(update: Update, context: CallbackContext) -> None:
     await clear_menu(update, context) # clear previous menus
     keyboard = [
         [InlineKeyboardButton("💈 Profile Details", callback_data="profile_details"), 
-         InlineKeyboardButton("🔗 Portfolio", callback_data="link_portfolio")],
+         InlineKeyboardButton("🔗 Your Socials", callback_data="link_socials")],
         [InlineKeyboardButton("🗓️ Calendar", callback_data="calendar"),
          InlineKeyboardButton("📅 Appointments", callback_data="appointments")],
         [InlineKeyboardButton("💇🏻 Your Services", callback_data="services_menu"), 

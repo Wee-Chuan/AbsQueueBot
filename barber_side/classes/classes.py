@@ -5,7 +5,7 @@ from barber_side.utils.globals import *
 import asyncio
 
 class Barber:
-    def __init__(self, name, email, address, postal, region, doc_id=None, desc_id=None, portfolio=None, services=None, notify = False, uuid = None):
+    def __init__(self, name, email, address, postal, region, doc_id=None, desc_id=None, ig_link=None, tiktok_link=None, services=None, notify = False, uuid = None):
         self.name = name
         self.email = email
         self.address = address
@@ -15,7 +15,8 @@ class Barber:
         self.doc_id = doc_id  # Firestore document ID, immutable.
         self.services = services if services else []  # Default empty list if none provided.
         self.notify = notify
-        self.portfolio = portfolio
+        self.ig_link = ig_link
+        self.tiktok_link = tiktok_link
         self.uuid = uuid
 
     def push_to_db(self, db: firestore.Client):
@@ -35,7 +36,8 @@ class Barber:
                 "region": self.region,
                 "services": self.services,
                 "notify": self.notify,
-                "portfolio": self.portfolio,
+                "tiktok_link":self.tiktok_link,
+                "ig_link":self.ig_link,
                 "description_id": self.desc_id,
                 "uuid": self.uuid
             }
@@ -69,7 +71,8 @@ class Barber:
                 "region": self.region,
                 "services": self.services,
                 "notify": self.notify,
-                "portfolio": self.portfolio,
+                "tiktok_link":self.tiktok_link,
+                "ig_link":self.ig_link,
                 "description_id": self.desc_id,
                 "uuid":user_record.uid
             }
@@ -127,6 +130,9 @@ class Barber:
                 region = data.get('region', "No region available")
                 address = data.get('address', "No address available")
                 postal = data.get('postal code', "No postal code available")
+                tiktok_link = data.get('tiktok_link', "No TikTok link")
+                ig_link = data.get('ig_link', "No Instagram link")
+                
 
                 # Fetch the description if exists
                 description_text = "No active description available."

@@ -51,7 +51,8 @@ async def login_dev(update: Update, context: CallbackContext) -> None:
             desc_id=barber_doc.get('description_id'),
             postal=barber_doc.get('postal code'),
             region=barber_doc.get('region'),
-            portfolio = barber_doc.get('portfolio_link'),
+            ig_link = barber_doc.get('ig_link', "No Instagram link"),
+            tiktok_link = barber_doc.get('tiktok_link', "No TikTok link"),
             doc_id=result_list[0].id,
             services=barber_doc.get('services'),
             uuid=uid
@@ -193,7 +194,8 @@ async def get_login_details(update: Update, context: CallbackContext) -> int:
             desc_id=barber_doc.get('description_id'),
             postal=barber_doc.get('postal'),
             region=barber_doc.get('region'),
-            portfolio=barber_doc.get('portfolio_link'),
+            ig_link = barber_doc.get('ig_link', "No Instagram link"),
+            tiktok_link = barber_doc.get('tiktok_link', "No TikTok link"),
             doc_id=result_list[0].id,
             services=barber_doc.get('services'),
             uuid=uid
