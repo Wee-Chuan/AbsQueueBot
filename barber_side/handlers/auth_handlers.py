@@ -315,11 +315,13 @@ async def get_name_su(update: Update, context: CallbackContext) -> int:
 ### Step 4: Save name and ask for postcode (with Firestore check) ###
 async def get_postcode_su(update: Update, context: CallbackContext) -> int:
     barber_name = update.message.text.strip()
+    name_lowercase = barber_name.lower() # LOWER CASE IT
+    print(f"QUERYING FOR {name_lowercase}")
     context.user_data.setdefault('signup_deletes', []).append(update.message.message_id)
 
     # Firestore check for existing barber name
     barbers_ref = db.collection("barbers")
-    query = barbers_ref.where("name", "==", barber_name).limit(1)
+    query = barbers_ref.where("name_lowercase", "==", name_lowercase).limit(1)
     results = query.stream()
 
     if any(results):  # If a document exists
@@ -401,6 +403,7 @@ async def create_barber_and_save(update: Update, context: CallbackContext) -> in
     # Create Barber object without doc_id (it will be set by add_to_db_with_auth)
     barber = Barber(
         name=context.user_data["name"],
+        name_lowercase= context.user_data["name"].lower(),
         email=context.user_data["email"],
         address=context.user_data["address"],
         postal=context.user_data["postal"],

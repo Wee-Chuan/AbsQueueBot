@@ -5,7 +5,7 @@ from barber_side.utils.globals import *
 import asyncio
 
 class Barber:
-    def __init__(self, name, email, address, postal, region, doc_id=None, desc_id=None, ig_link=None, tiktok_link=None, services=None, notify = False, uuid = None):
+    def __init__(self, name, email, address, postal, region, name_lowercase, doc_id=None, desc_id=None, ig_link=None, tiktok_link=None, services=None, notify = False, uuid = None):
         self.name = name
         self.email = email
         self.address = address
@@ -18,6 +18,7 @@ class Barber:
         self.ig_link = ig_link
         self.tiktok_link = tiktok_link
         self.uuid = uuid
+        self.name_lowercase = name_lowercase
 
     def push_to_db(self, db: firestore.Client):
         """
@@ -39,7 +40,8 @@ class Barber:
                 "tiktok_link":self.tiktok_link,
                 "ig_link":self.ig_link,
                 "description_id": self.desc_id,
-                "uuid": self.uuid
+                "uuid": self.uuid,
+                "name_lowercase": self.name_lowercase
             }
             barber_ref = db.collection('barbers').document(self.doc_id)
             barber_ref.update(barber_data)
@@ -74,7 +76,8 @@ class Barber:
                 "tiktok_link":self.tiktok_link,
                 "ig_link":self.ig_link,
                 "description_id": self.desc_id,
-                "uuid":user_record.uid
+                "uuid":user_record.uid,
+                "name_lowercase":self.name_lowercase
             }
 
             # Add document with the Firebase UID as the doc_id to 'barbers'
@@ -132,6 +135,7 @@ class Barber:
                 postal = data.get('postal code', "No postal code available")
                 tiktok_link = data.get('tiktok_link', "No TikTok link")
                 ig_link = data.get('ig_link', "No Instagram link")
+                name_lowercase = data.get('name_lowercase', "NO LOWERCASE FOUND")
                 
 
                 # Fetch the description if exists
