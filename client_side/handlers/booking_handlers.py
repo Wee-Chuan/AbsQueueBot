@@ -514,11 +514,11 @@ async def search_barber(update: Update, context: CallbackContext) -> int:
         barber_name = update.message.text.lower()                           # Extract the barber's name from the message
 
         print(f"Barber name from message: {barber_name}")
-        # HelperUtils.set_user_data(context, "barber_name", barber_name)
+        HelperUtils.set_user_data(context, "barber_name", barber_name)
         HelperUtils.store_message_id(context, update.message.message_id)    # Store the user's search message ID
     elif update.callback_query:
         await update.callback_query.answer()                                
-        barber_name = HelperUtils.get_user_data(context, "barber_name")     # Retrieve the barber's name from user data
+        barber_name = HelperUtils.get_user_data(context, "barber_name").lower()     # Retrieve the barber's name from user data
         if not barber_name:
             msg = await update.callback_query.edit_message_text("🙁 No barber name provided. Please try again.")
             HelperUtils.store_message_id(context, msg.message_id)
@@ -538,12 +538,22 @@ async def search_barber(update: Update, context: CallbackContext) -> int:
             error_message = Messages.error_message("barber_not_found")
             if update.message:
                 msg = await update.message.reply_text(
-                        error_message,
-                        reply_markup=InlineKeyboardMarkup([
-                            [InlineKeyboardButton("🔍 Try Again", callback_data="search_barber")]
-                        ])
-                    )
-            HelperUtils.store_message_id(context, msg.message_id)
+                    error_message,
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("🔍 Try Again", callback_data="search_barber")]
+                    ])
+                )
+                HelperUtils.store_message_id(context, msg.message_id)
+
+            elif query:
+                msg = await query.edit_message_text(
+                    error_message,
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("🔍 Try Again", callback_data="search_barber")]
+                    ])
+                )
+                HelperUtils.store_message_id(context, msg.message_id)
+
             return SEARCH_BARBER
 
         doc_id = barber_info['doc_id']
