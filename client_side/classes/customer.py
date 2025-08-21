@@ -10,6 +10,7 @@ from client_side.utils.globals import *
 from math import radians, sin, cos, sqrt, atan2
 from functools import wraps
 import requests
+import re
 
 class Customer:
     def __init__(self, id, name, email, phone_number):
@@ -142,6 +143,7 @@ class Customer:
     @staticmethod
     def geocode_address(address: str, api_key: str):
         """Convert an address into latitude and longitude using Google Maps API."""
+        print(f"Geocoding address: {address}")
         url = f"https://maps.googleapis.com/maps/api/geocode/json?address={address}&key={api_key}"
         response = requests.get(url)
         if response.status_code == 200:
@@ -161,7 +163,21 @@ class Customer:
         barbers_with_coordinates = {}
 
         for barber_id, barber_info in barbers.items():
-            address = barber_info["address"]
+            raw_address = barber_info["address"]
+            postal = barber_info.get("postal", "")
+
+            # 1. Clean up unwanted characters
+            clean_address = raw_address.replace("\\", " ").replace("\n", " ").strip()
+            clean_address = re.sub(r'\s+', ' ', clean_address) 
+
+            # 2. Remove unit numbers like #05-09 or 05-09
+            clean_address = re.sub(r'#?\d{1,3}-\d{1,3}', '', clean_address).strip()
+
+            # 3. Build final address
+            if postal:
+                address = f"{clean_address}, Singapore {postal}"
+            else:
+                address = f"{clean_address}, Singapore"
             lat, lng = Customer.geocode_address(address, api_key)
             if lat is not None and lng is not None:
                 barbers_with_coordinates[barber_id] = {
