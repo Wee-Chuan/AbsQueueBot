@@ -191,7 +191,7 @@ async def get_login_details(update: Update, context: CallbackContext) -> int:
             email=barber_doc.get('email'),
             name=barber_doc.get('name'),
             desc_id=barber_doc.get('description_id'),
-            postal=barber_doc.get('postal code'),
+            postal=barber_doc.get('postal'),
             region=barber_doc.get('region'),
             portfolio=barber_doc.get('portfolio_link'),
             doc_id=result_list[0].id,
