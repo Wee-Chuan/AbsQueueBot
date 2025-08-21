@@ -266,7 +266,7 @@ class Customer:
                 tiktok_link = data.get('tiktok_link')
                 region = data.get('region', "No region available")
                 address = data.get('address', "No address available")
-                postal = data.get('postal code', "No postal code available")
+                postal = data.get('postal', "No postal code available")
 
                 # Fetch the description if exists
                 description_text = "No active description available."
