@@ -203,32 +203,45 @@ async def handle_pending_appointments(update: Update, context: CallbackContext):
 async def handle_upcoming_appointments(update: Update, context: CallbackContext):
     query = update.callback_query
     await query.answer()
-    # await cleanup_chat_flow(update, context)
-
+    
     uuid = context.user_data.get('current_user').uuid
-    now = datetime.now(pytz.UTC)
+    now = datetime.now(pytz.UTC)  # keep UTC for Firestore query
     results = (
         db.collection('booked slots')
           .where('barber_id', '==', uuid)
           .where('`start time`', '>=', now)
           .stream()
     )
+
+    sg_tz = pytz.timezone("Asia/Singapore")  # explicit SG timezone
     keyboard = []
+
     for doc in results:
         d = doc.to_dict()
-        tm = d.get('start time').astimezone().strftime('%H:%M')
+        start_time = d.get('start time')
+
+        # Convert Firestore timestamp to Singapore time
+        start_time_sg = start_time.astimezone(sg_tz)
+        tm = start_time_sg.strftime('%H:%M')
         name = d.get('booked_by', {}).get('username', 'Unknown')
-        label = f"📅 {d.get('start time').astimezone().strftime('%d %b')} | 🕰️ {tm} | 👤 {name}"
+        label = f"📅 {start_time_sg.strftime('%d %b')} | 🕰️ {tm} | 👤 {name}"
         keyboard.append([InlineKeyboardButton(label, callback_data=f"upcomingappointment_{doc.id}")])
+
     if keyboard:
         keyboard.append([InlineKeyboardButton("🔙", callback_data="back_to_appt_menu")])
-        msg = await query.message.edit_text(
+        await query.message.edit_text(
             "🔔 *Upcoming Appointments:* Choose below to manage:",
-            parse_mode='Markdown', reply_markup=InlineKeyboardMarkup(keyboard)
+            parse_mode='Markdown',
+            reply_markup=InlineKeyboardMarkup(keyboard)
         )
     else:
         reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("🔙", callback_data="back_to_appt_menu")]])
-        msg = await query.message.edit_text("✅ No upcoming appointments found.", reply_markup=reply_markup, parse_mode='Markdown')
+        await query.message.edit_text(
+            "✅ No upcoming appointments found.",
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
+
 
 # --- Appointment status actions ---
 async def handle_appointment_status(update: Update, context: CallbackContext):
