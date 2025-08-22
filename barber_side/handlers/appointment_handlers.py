@@ -167,10 +167,9 @@ async def handle_single_appointment(update: Update, context: CallbackContext) ->
 async def handle_pending_appointments(update: Update, context: CallbackContext):
     query = update.callback_query
     await query.answer()
-    # await cleanup_chat_flow(update, context)
-
+    
     uuid = context.user_data.get('current_user').uuid
-    now = datetime.now(pytz.UTC)
+    now = datetime.now(pytz.UTC)  # UTC for Firestore query
     results = (
         db.collection('booked slots')
           .where('barber_id', '==', uuid)
@@ -179,26 +178,40 @@ async def handle_pending_appointments(update: Update, context: CallbackContext):
           .where('no_show', '==', False)
           .stream()
     )
+
+    sg_tz = pytz.timezone("Asia/Singapore")  # explicit SG timezone
     keyboard = []
+
     for doc in results:
         d = doc.to_dict()
-        tm = d.get('start time').astimezone().strftime('%H:%M')
+        start_time = d.get('start time')
+
+        # Convert Firestore timestamp to Singapore time
+        start_time_sg = start_time.astimezone(sg_tz)
+        tm = start_time_sg.strftime('%I:%M %p')  # 12-hour format with AM/PM
         name = d.get('booked_by', {}).get('username', 'Unknown')
-        label = f"📅 {d.get('start time').astimezone().strftime('%d %b')} | 🕰️ {tm} | 👤 {name}"
+
+        label = f"📅 {start_time_sg.strftime('%d %b')} | 🕰️ {tm} | 👤 {name}"
         keyboard.append([InlineKeyboardButton(label, callback_data=f"pending_appt:{doc.id}")])
         keyboard.append([
             InlineKeyboardButton("❌ No Show", callback_data=f"NO_SHOW:{doc.id}"),
             InlineKeyboardButton("✅ Completed", callback_data=f"COMPLETED:{doc.id}")
         ])
+
     if keyboard:
         keyboard.append([InlineKeyboardButton("🔙", callback_data="back_to_appt_menu")])
-        msg = await query.message.edit_text(
+        await query.message.edit_text(
             "🔔 *Pending Appointments:* Choose below to manage:",
-            parse_mode='Markdown', reply_markup=InlineKeyboardMarkup(keyboard)
+            parse_mode='Markdown',
+            reply_markup=InlineKeyboardMarkup(keyboard)
         )
     else:
         reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("🔙", callback_data="back_to_appt_menu")]])
-        msg = await query.message.edit_text("✅ No pending appointments found.", reply_markup=reply_markup, parse_mode='Markdown')
+        await query.message.edit_text(
+            "✅ No pending appointments found.",
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
 
 async def handle_upcoming_appointments(update: Update, context: CallbackContext):
     query = update.callback_query
@@ -222,7 +235,7 @@ async def handle_upcoming_appointments(update: Update, context: CallbackContext)
 
         # Convert Firestore timestamp to Singapore time
         start_time_sg = start_time.astimezone(sg_tz)
-        tm = start_time_sg.strftime('%H:%M')
+        tm = start_time_sg.strftime('%I:%M %p')
         name = d.get('booked_by', {}).get('username', 'Unknown')
         label = f"📅 {start_time_sg.strftime('%d %b')} | 🕰️ {tm} | 👤 {name}"
         keyboard.append([InlineKeyboardButton(label, callback_data=f"upcomingappointment_{doc.id}")])
@@ -273,7 +286,7 @@ def generate_appointment_keyboard(appointments, prefix, page=0, per_page=5):
     kb = []
     for doc in sliced:
         d = doc.to_dict()
-        ts = d['start time'].astimezone().strftime('%d %b %H:%M')
+        ts = d['start time'].astimezone().strftime('%d %b %-I:%M %p')
         name = d.get('booked_by', {}).get('username', '')
         price = d.get('service_price', '')
         kb.append([InlineKeyboardButton(f"{ts} -- Client: {name}", callback_data=f"{prefix}appointment_{doc.id}")])
@@ -316,6 +329,8 @@ async def handle_no_show_appointments(update: Update, context: CallbackContext):
         msg = await query.message.edit_text("✅ No no-show appointments.", parse_mode='Markdown', reply_markup=InlineKeyboardMarkup(keyboard))
     context.user_data.setdefault('chat_flow', []).append(msg.message_id)
     return APPOINTMENTS_MENU
+
+
 
 async def handle_appointment_pagination(update: Update, context: CallbackContext):
     query = update.callback_query
