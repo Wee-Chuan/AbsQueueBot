@@ -158,7 +158,7 @@
     function initMap() {
         map = new google.maps.Map(document.getElementById("map"), {
             center: { lat: 1.3521, lng: 103.8198 }, // Singapore
-            zoom: 13,
+            zoom: 12,
             fullscreenControl: true,
             mapTypeControl: false,    
             streetViewControl: false,
@@ -178,7 +178,7 @@
                 map.setCenter(userLocation);
 
                 // Create the blue dot circle (solid fill)
-                const locationCircle = new google.maps.Circle({
+                window.userLocationMarker = new google.maps.Circle({
                 strokeColor: '#4285F4',
                 strokeOpacity: 1,
                 strokeWeight: 2,
@@ -192,7 +192,7 @@
                 });
 
                 // Create the outer light blue halo circle (larger, translucent)
-                const haloCircle = new google.maps.Circle({
+                window.userLocationHalo = new google.maps.Circle({
                 strokeColor: '#4285F4',
                 strokeOpacity: 0,
                 strokeWeight: 0,
@@ -208,15 +208,16 @@
                 // Optionally animate the halo by changing its radius with setInterval
                 let growing = true;
                 let radius = 40;
-                setInterval(() => {
-                if (growing) {
-                    radius += 1;
-                    if (radius >= 50) growing = false;
-                } else {
-                    radius -= 1;
-                    if (radius <= 40) growing = true;
-                }
-                haloCircle.setRadius(radius);
+                if (window.haloPulseInterval) clearInterval(window.haloPulseInterval);
+                window.haloPulseInterval = setInterval(() => {
+                    if (growing) {
+                        radius += 1;
+                        if (radius >= 50) growing = false;
+                    } else {
+                        radius -= 1;
+                        if (radius <= 40) growing = true;
+                    }
+                    window.userLocationHalo.setRadius(radius);
                 }, 80);
 
             }, (error) => {
@@ -268,6 +269,12 @@
         
         // Add touch/click handler
         locationButton.addEventListener("click", () => {
+            if (window.userLocationMarker) {
+                window.userLocationMarker.setMap(null);
+            }
+            if (window.userLocationHalo) {
+                window.userLocationHalo.setMap(null);
+            }
             // Visual feedback
             locationButton.style.backgroundColor = "#f5f5f5";
             setTimeout(() => {
@@ -393,6 +400,28 @@
         return markerDiv;
     }
 
+    function cleanAdress(rawAddress, postal) {
+        if (!rawAddress) return "";
+
+        // 1. Replace backslashes and newlines with space
+        let address = rawAddress.replace(/\\/g, " ").replace(/\n/g, " ").trim();
+
+        // 2. Collapse multiple spaces into one
+        address = address.replace(/\s+/g, " ");
+
+        // 3. Remove unit numbers like #05-09 or 05-09
+        address = address.replace(/#?\d{1,3}-\d{1,3}/g, "").trim();
+
+        // 4. Append postal if available
+        if (postal && postal.trim() !== "") {
+            address = `${address}, Singapore ${postal}`;
+        } else {
+            address = `${address}, Singapore`;
+        }
+
+        return address;
+    }
+
     // Load barber locations from Firestore
     function loadBarberLocations() {
         db.collection("barbers").get().then((querySnapshot) => {
@@ -410,6 +439,7 @@
                         id: doc.id,
                         name: barber.name,
                         address: barber.address,
+                        postal: barber.postal || "",
                         location: null,
                         marker: null,
                         rating: "Loading...",
@@ -446,7 +476,8 @@
                     let geocodePromise = ratingPromise.then(() => {
                         return new Promise((resolve) => {
                             const geocoder = new google.maps.Geocoder();
-                            geocoder.geocode({ address: barber.address }, (results, status) => {
+                            const cleanedAddress = cleanAdress(barber.address, barber.postal);
+                            geocoder.geocode({ address: cleanedAddress }, (results, status) => {
                                 if (status === "OK") {
                                     const location = results[0].geometry.location;
                                     barberObj.location = location;
