@@ -22,7 +22,7 @@ from client_side.handlers.view_bookings_handlers import start_bookings
 from client_side.classes.booking import Booking
 from client_side.classes.customer import Customer
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # ==================== CONSTANTS ====================
 # State constants
@@ -104,6 +104,8 @@ async def handle_search_option(update: Update, context: CallbackContext) -> int:
         return await start_search_barber(update, context)
     elif search_type == "rating":
         return await top_rated(update, context)
+    elif search_type == "recent":
+        return await recent_barbers(update, context)
 
 # ==================== OPTIONS ====================
 @HelperUtils.check_conversation_active
@@ -177,6 +179,73 @@ async def favorite_barbers(update: Update, context: CallbackContext) -> int:
         return SEARCH_OPTION
     
     return await select_barber(update, context, page=0, barbers=favorited_barbers)
+
+@HelperUtils.check_conversation_active
+async def recent_barbers(update: Update, context: CallbackContext) -> int:
+    """Handle recently joined barbers display"""
+    query = update.callback_query
+    await query.answer()
+
+    try:
+        # Try to load cached barbers
+        all_barbers = HelperUtils.get_user_data(context, "all_barbers")
+        if not all_barbers:
+            all_barbers = Customer.get_all_barbers(db)
+            HelperUtils.set_user_data(context, "all_barbers", all_barbers)
+
+        # Cutoff date = 30 days ago
+        cutoff_date = datetime.now(pytz.UTC) - timedelta(days=30)
+
+        # Dictionary to hold barbers with join date
+        recent_barbers = {}
+
+        for barber_id, barber_data in all_barbers.items():
+            try:
+                # Fetch barber creation timestamp from Firebase Auth
+                user_record = auth.get_user(barber_id)
+                created_at = datetime.fromtimestamp(
+                    user_record.user_metadata.creation_timestamp / 1000,
+                    tz=pytz.UTC
+                )
+
+                # Keep only if within last 30 days
+                if created_at >= cutoff_date:
+                    barber_data["created_at"] = created_at
+                    recent_barbers[barber_id] = barber_data
+
+            except Exception as e:
+                print(f"Error fetching barber {barber_id} join date: {e}")
+
+        if not recent_barbers:
+            await query.edit_message_text(
+                text="No barbers found.",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("Back", callback_data="back_to_search_option")]
+                ])
+            )
+            return SEARCH_OPTION
+
+        # Sort barbers by creation date (newest first)
+        recent_barbers = dict(
+            sorted(recent_barbers.items(), key=lambda item: item[1]["created_at"], reverse=True)
+        )
+
+        # Store the search type in context
+        HelperUtils.set_user_data(context, "search_type", "recent")
+
+        # Reuse select_barber pagination
+        return await select_barber(update, context, page=0, barbers=recent_barbers)
+
+    except Exception as e:
+        print(f"Error fetching recently joined barbers: {e}")
+        await query.edit_message_text(
+            text="An error occurred while fetching recently joined barbers.",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("Back", callback_data="back_to_search_option")]
+            ])
+        )
+        return SEARCH_OPTION
+
 
 @HelperUtils.check_conversation_active
 async def start_search_barber(update: Update, context: CallbackContext) -> int:
@@ -321,7 +390,8 @@ async def select_barber(update: Update, context: CallbackContext, page: int=0, b
                 "region": region, 
                 "is_location_search": search_type == "location",
                 "is_favorites": search_type == "favorites",
-                "is_top_rated": search_type == "top_rated"
+                "is_top_rated": search_type == "top_rated",
+                "is_recent_barbers": search_type == "recent"
             }
         ) 
 
@@ -1396,7 +1466,7 @@ book_slots_handler = ConversationHandler(
     entry_points=[CallbackQueryHandler(search_option, pattern="^book_slots$")],
     states={
         SEARCH_OPTION: [
-            CallbackQueryHandler(handle_search_option, pattern="^search_by_(rating|favorites|region|location|name)$"),
+            CallbackQueryHandler(handle_search_option, pattern="^search_by_(rating|favorites|recent|region|location|name)$"),
             CallbackQueryHandler(handle_back_to_search_option, pattern="^back_to_search_option$"),
             CallbackQueryHandler(client_menu, pattern="^back_to_menu$"),
         ],

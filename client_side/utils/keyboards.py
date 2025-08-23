@@ -34,9 +34,12 @@ class Keyboards:
             # Search by name row
             [InlineKeyboardButton("🔍 Search by Name", callback_data="search_by_name")],
 
+            # Favorites row
+            [InlineKeyboardButton("❤️ Favorites", callback_data="search_by_favorites")],
+
             # Popular choices row
             [InlineKeyboardButton("⭐ Top Rated", callback_data="search_by_rating"),
-            InlineKeyboardButton("❤️ Favorites", callback_data="search_by_favorites")],
+             InlineKeyboardButton("🕒 New Barbers", callback_data="search_by_recent")],
 
             # Location based row
             [InlineKeyboardButton("🌍 Regions", callback_data="search_by_region"),

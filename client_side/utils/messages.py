@@ -36,6 +36,7 @@ class Messages:
                 "❤️ Your favorite barbers 👇" if details.get("is_favorites")
                 else "Barbers near you 👇" if details.get("is_location_search")
                 else "⭐ Top rated barbers 👇" if details.get("is_top_rated")
+                else "🕒 Recently joined barbers 👇" if details.get("is_recent_barbers")
                 else f"Available barbers in <b>{details.get('region', 'Unknown')}</b>👇" 
             ),
             "share_contact": "📱 Please share your contact number so the barber can contact you.",

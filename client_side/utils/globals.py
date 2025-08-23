@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 import firebase_admin
-from firebase_admin import credentials
+from firebase_admin import credentials, auth
 from firebase_admin import firestore, initialize_app, storage
 import pytz
 import os
