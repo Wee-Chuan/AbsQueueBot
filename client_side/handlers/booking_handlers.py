@@ -33,6 +33,29 @@ CONFIRM_CONTACT, CONFIRM_BOOKING = range(10, 12)
 # Pagination constants
 BARBER_PER_PAGE = 5
 
+async def deep_link_entry(update: Update, context: CallbackContext):
+    """Entry point for /start <payload> deep links -> jump into booking flow."""
+    await HelperUtils.clear_previous_messages(context, update.effective_chat.id)
+    args = getattr(context, "args", [])
+    if not args:
+        # No payload; politely end (this won't be hit if you wire filters correctly)
+        await update.message.reply_text("Invalid or missing link.")
+        return ConversationHandler.END
+
+    payload = args[0]  # e.g. "barber_0GnZC0eM4Yer8CaRmqPorALG92D2"
+    if not payload.startswith("barber_"):
+        await update.message.reply_text("Invalid deep link.")
+        return ConversationHandler.END
+
+    doc_id = payload[len("barber_"):]
+    HelperUtils.set_user_data(context, "conversation_active", True)
+    HelperUtils.set_user_data(context, "barber_doc_id", doc_id)
+    HelperUtils.set_user_data(context, "search_type", "deep_link")
+
+    # Show details and enter BARBER_DETAILS state of this ConversationHandler
+    await view_barber_details(update, context)
+    return SELECT_SERVICE
+
 # ==================== OPTION FLOW ====================
 @HelperUtils.check_conversation_active
 async def search_option(update: Update, context: CallbackContext) -> int:
@@ -422,19 +445,41 @@ async def select_barber(update: Update, context: CallbackContext, page: int=0, b
 @HelperUtils.check_conversation_active
 async def view_barber_details(update: Update, context: CallbackContext) -> int:
     """Display barber details along with view services option, learn more and follow options"""
-    query = update.callback_query
-    await query.answer()  # Acknowledge callback query
+    # Clear previous messages first
+    HelperUtils.clear_previous_messages(context, update.effective_chat.id)
 
-    if query.data.startswith(("barber_")):
+    query = update.callback_query
+    # await query.answer()  # Acknowledge callback query
+
+    # Determine if it's a callback query or a deep link /start
+    if update.callback_query:
+        query = update.callback_query
+        await query.answer()  # Acknowledge callback
+        data = query.data
+    elif update.message and update.message.text.startswith("/start "):
+        # Deep link payload
+        parts = update.message.text.split(maxsplit=1)
+        payload = parts[1]  # e.g., "barber_0GnZC0eM4Yer8CaRmqPorALG92D2"
+        doc_id = payload.replace("barber_", "")
+        HelperUtils.set_user_data(context, "barber_doc_id", doc_id)
+        HelperUtils.set_user_data(context, "search_type", "deep_link")
+        data = f"barber_{doc_id}"
+        query = None  # No callback query in deep link
+
+    # if query.data.startswith(("barber_")):
+    #     await HelperUtils.clear_previous_messages(context, update.effective_chat.id)
+
+    # Clear previous messages if callback
+    if query and data.startswith("barber_"):
         await HelperUtils.clear_previous_messages(context, update.effective_chat.id)
 
     # Handle follow/unfollow actions first
-    if query.data.startswith(("follow_", "unfollow_")):
-        doc_id = query.data.split("_")[1]  # Extract doc_id from either follow_ or unfollow_
+    if data.startswith(("follow_", "unfollow_")):
+        doc_id = data.split("_")[1]  # Extract doc_id from either follow_ or unfollow_
         username = update.effective_user.username or str(update.effective_user.id)
         user_id = update.effective_user.id or str(update.effective_user.id)
         
-        if query.data.startswith("follow_"):
+        if data.startswith("follow_"):
             Customer.follow_barber(db, doc_id, username, user_id)
         else:
             Customer.unfollow_barber(db, doc_id, user_id)
@@ -444,11 +489,14 @@ async def view_barber_details(update: Update, context: CallbackContext) -> int:
     else:
         # Existing doc_id handling for non-follow actions
         doc_id = HelperUtils.get_user_data(context, "barber_doc_id")
-        if not doc_id and query.data.startswith("barber_"):
+        if not doc_id and data.startswith("barber_"):
             doc_id = query.data.replace("barber_", "")
             HelperUtils.set_user_data(context, "barber_doc_id", doc_id)
 
     barbers = HelperUtils.get_user_data(context, "all_barbers")
+    if not barbers: 
+        barbers = Customer.get_all_barbers(db)
+        HelperUtils.set_user_data(context, "all_barbers", barbers)
     barber_info = barbers.get(doc_id)
 
     if not barber_info:
@@ -475,7 +523,7 @@ async def view_barber_details(update: Update, context: CallbackContext) -> int:
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     # Handle message display
-    if query.data.startswith(("follow_", "unfollow_", "back_to_info")):
+    if data.startswith(("follow_", "unfollow_", "back_to_info")):
         try:
             await query.edit_message_text(
                 text=response_text,
@@ -1463,7 +1511,10 @@ async def handle_back_to_services(update: Update, context: CallbackContext) -> i
 
 # ==================== CONVERSATION HANDLER DEFINITION ====================
 book_slots_handler = ConversationHandler(
-    entry_points=[CallbackQueryHandler(search_option, pattern="^book_slots$")],
+    entry_points=[
+        CommandHandler("start", deep_link_entry, filters=filters.Regex(r"^/start .+")),
+        CallbackQueryHandler(search_option, pattern="^book_slots$")
+    ],
     states={
         SEARCH_OPTION: [
             CallbackQueryHandler(handle_search_option, pattern="^search_by_(rating|favorites|recent|region|location|name)$"),

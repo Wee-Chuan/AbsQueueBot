@@ -199,9 +199,11 @@ class BarberBot:
         """Create and configure bot application."""
         app = Application.builder().token(self.token).build()
 
+        app.add_handler(book_slots_handler)
+
         # Create conversation handler for role selection    
         role_selection_handler = ConversationHandler(
-            entry_points=[CommandHandler("start", self.start)],
+            entry_points=[CommandHandler("start", self.start, filters=filters.Regex(r"^/start$"))],
             states={
                 SELECTING_ROLE: [
                     MessageHandler(filters.Regex("(Client|Barber)$"),  self.handle_role_selection)
