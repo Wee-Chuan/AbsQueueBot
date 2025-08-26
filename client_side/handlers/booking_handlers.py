@@ -36,6 +36,12 @@ BARBER_PER_PAGE = 5
 async def deep_link_entry(update: Update, context: CallbackContext):
     """Entry point for /start <payload> deep links -> jump into booking flow."""
     await HelperUtils.clear_previous_messages(context, update.effective_chat.id)
+    # Get barbers location data once for all search types
+    barbers_location = HelperUtils.get_user_data(context, "barbers_location")
+    if not barbers_location:
+        barbers_location = Customer.get_barbers_location(db, GEOCODING_API_KEY)
+        HelperUtils.set_user_data(context, "barbers_location", barbers_location)
+        
     args = getattr(context, "args", [])
     if not args:
         # No payload; politely end (this won't be hit if you wire filters correctly)
