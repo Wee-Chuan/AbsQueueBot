@@ -34,7 +34,7 @@ async def menu(update: Update, context: CallbackContext) -> None:
     if not await check_login(update, context): await update.message.reply_text("Please log in first.\nClick on /login to login!"); return
         
     await clear_menu(update, context) # clear previous menus
-    keyboard = [
+    keyboard = [[InlineKeyboardButton("🤝 Share Profile", callback_data="deep_link"),],
         [InlineKeyboardButton("💈 Profile Details", callback_data="profile_details"), 
          InlineKeyboardButton("🔗 Your Socials", callback_data="link_socials")],
         [InlineKeyboardButton("🗓️ Calendar", callback_data="calendar"),

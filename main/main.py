@@ -22,6 +22,7 @@ from barber_side.utils.globals import *
 from barber_side.utils.storage_actions import display_start_image
 
 # Handlers for various functionalities (from barber_side.handlers)
+from barber_side.handlers.deep_link_handler import generate_link, link_conv_handler
 from barber_side.handlers.menu_handlers import menu
 from barber_side.handlers.auth_handlers import *
 from barber_side.handlers.calendar import calendar_handler
@@ -261,9 +262,10 @@ class BarberBot:
         # portfolio
         app.add_handler(portfolio_conv_handler)
         
+        # generate deep_link
+        app.add_handler(link_conv_handler)
+        
         # COMMAND HANDLERS
-        #/start
-        #app.add_handler(CommandHandler("start", start))
         
         #/menu
         app.add_handler(CommandHandler("menu", menu))
