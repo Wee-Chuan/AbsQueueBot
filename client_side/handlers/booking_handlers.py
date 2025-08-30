@@ -41,7 +41,7 @@ async def deep_link_entry(update: Update, context: CallbackContext):
     if not barbers_location:
         barbers_location = Customer.get_barbers_location(db, GEOCODING_API_KEY)
         HelperUtils.set_user_data(context, "barbers_location", barbers_location)
-        
+
     args = getattr(context, "args", [])
     if not args:
         # No payload; politely end (this won't be hit if you wire filters correctly)
@@ -177,7 +177,10 @@ async def top_rated(update: Update, context: CallbackContext) -> int:
         # Store the search type in context
         HelperUtils.set_user_data(context, "search_type", "top_rated")
 
-        return await select_barber(update, context, page=0, barbers=rated_barbers)
+        # Store rated barbers in context (so pagination can access them later)
+        HelperUtils.set_user_data(context, "rated_barbers", rated_barbers)
+
+        return await select_barber(update, context, barbers=rated_barbers)
     
     except Exception as e:
         print(f"Error fetching top-rated barbers: {e}")
@@ -207,7 +210,13 @@ async def favorite_barbers(update: Update, context: CallbackContext) -> int:
         )
         return SEARCH_OPTION
     
-    return await select_barber(update, context, page=0, barbers=favorited_barbers)
+    # Store the search type in context
+    HelperUtils.set_user_data(context, "search_type", "favorites")
+
+    # Store favorited barbers in context (so pagination can access them later)
+    HelperUtils.set_user_data(context, "favorited_barbers", favorited_barbers)
+
+    return await select_barber(update, context, barbers=favorited_barbers)
 
 @HelperUtils.check_conversation_active
 async def recent_barbers(update: Update, context: CallbackContext) -> int:
@@ -262,8 +271,11 @@ async def recent_barbers(update: Update, context: CallbackContext) -> int:
         # Store the search type in context
         HelperUtils.set_user_data(context, "search_type", "recent")
 
+        # Store recent barbers in context (so pagination can access them later)
+        HelperUtils.set_user_data(context, "recent_barbers", recent_barbers)
+
         # Reuse select_barber pagination
-        return await select_barber(update, context, page=0, barbers=recent_barbers)
+        return await select_barber(update, context, barbers=recent_barbers)
 
     except Exception as e:
         print(f"Error fetching recently joined barbers: {e}")
@@ -365,7 +377,6 @@ async def select_barber(update: Update, context: CallbackContext, page: int=0, b
     HelperUtils.clear_user_data(context, [
         "barber_info",
         "barber_doc_id",
-        "current_page",
         "available_slots",
     ])
     
@@ -388,6 +399,18 @@ async def select_barber(update: Update, context: CallbackContext, page: int=0, b
             # Sort barbers alphabetically by name
             barbers = dict(sorted(barbers.items(), key=lambda item: item[1]["name"].lower()))
         
+        if search_type == "favorites" and not barbers:
+            barbers = HelperUtils.get_user_data(context, "favorited_barbers")
+
+        if search_type == "top_rated" and not barbers:
+            barbers = HelperUtils.get_user_data(context, "rated_barbers")
+
+        if search_type == "recent" and not barbers:
+            barbers = HelperUtils.get_user_data(context, "recent_barbers")
+
+        if search_type == "location" and not barbers:
+            barbers = HelperUtils.get_user_data(context, "location_barbers")
+        
         if not barbers:
             # Use the Messages class to generate the error message
             error_message = Messages.error_message(
@@ -397,10 +420,14 @@ async def select_barber(update: Update, context: CallbackContext, page: int=0, b
                 await query.answer(text=error_message, show_alert=True)
                 return SELECT_BARBER
         
+        print(f"Total barbers found: {len(barbers)}")
+
         # Pagination
         start_index = page * BARBER_PER_PAGE
         end_index = start_index + BARBER_PER_PAGE
         barbers_page = list(barbers.items())[start_index:end_index]
+
+        print(f"Displaying barbers from index {start_index} to {end_index} for page {page}")
 
         # Generate the keyboard using the Keyboards class
         keyboard = Keyboards.select_barber_keyboard(
@@ -1472,6 +1499,9 @@ async def handle_location(update: Update, context: CallbackContext) -> int:
             return SEARCH_OPTION
 
         # Display nearby barbers
+        HelperUtils.set_user_data(context, "search_type", "location")
+        HelperUtils.set_user_data(context, "location_barbers", nearyby_barbers)
+
         return await select_barber(update, context, barbers=nearyby_barbers)
 
 # ==================== BACK HANDLERS ====================
@@ -1507,6 +1537,10 @@ async def handle_back_to_barbers(update: Update, context: CallbackContext) -> in
         user_id = update.effective_user.id or str(update.effective_user.id)
         barbers = Customer.get_followed_barbers(db, user_id)
         return await select_barber(update, context, barbers=barbers)
+    elif search_type == "top_rated":
+        return await top_rated(update, context)
+    elif search_type == "recent":
+        return await recent_barbers(update, context)
     else:
         # Default 
         return await select_barber(update, context, HelperUtils.get_user_data(context, "current_page"))
